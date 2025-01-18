@@ -1,31 +1,49 @@
-interface Options {
-  params?: Record<string, string>;
-  data?: any;
-}
+export type PageName =
+  | "loading"
+  | "test"
+  | "settings"
+  | "about"
+  | "account"
+  | "login"
+  | "profile"
+  | "profileSearch"
+  | "404"
+  | "accountSettings";
 
-export default class Page {
-  public name: string;
+type Options<T> = {
+  params?: Record<string, string>;
+  data?: T;
+};
+
+type PageProperties<T> = {
+  name: PageName;
+  element: JQuery;
+  path: string;
+  beforeHide?: () => Promise<void>;
+  afterHide?: () => Promise<void>;
+  beforeShow?: (options: Options<T>) => Promise<void>;
+  afterShow?: () => Promise<void>;
+};
+
+async function empty(): Promise<void> {
+  return;
+}
+export default class Page<T> {
+  public name: PageName;
   public element: JQuery;
   public pathname: string;
   public beforeHide: () => Promise<void>;
   public afterHide: () => Promise<void>;
-  public beforeShow: (options: Options) => Promise<void>;
+  public beforeShow: (options: Options<T>) => Promise<void>;
   public afterShow: () => Promise<void>;
-  constructor(
-    name: string,
-    element: JQuery,
-    pathname: string,
-    beforeHide: () => Promise<void>,
-    afterHide: () => Promise<void>,
-    beforeShow: (options: Options) => Promise<void>,
-    afterShow: () => Promise<void>
-  ) {
-    this.name = name;
-    this.element = element;
-    this.pathname = pathname;
-    this.beforeHide = beforeHide;
-    this.afterHide = afterHide;
-    this.beforeShow = beforeShow;
-    this.afterShow = afterShow;
+
+  constructor(props: PageProperties<T>) {
+    this.name = props.name;
+    this.element = props.element;
+    this.pathname = props.path;
+    this.beforeHide = props.beforeHide ?? empty;
+    this.afterHide = props.afterHide ?? empty;
+    this.beforeShow = props.beforeShow ?? empty;
+    this.afterShow = props.afterShow ?? empty;
   }
 }

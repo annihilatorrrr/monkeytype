@@ -1,6 +1,5 @@
 {
   "name": "friulian",
-  "leftToRight": true,
   "bcp47": "fur",
   "words": [
     "cemût",
@@ -71,7 +70,7 @@
     "lunc",
     "cjalâ",
     "lâ",
-    "podût ",
+    "podût",
     "numar",
     "dì",
     "gno",

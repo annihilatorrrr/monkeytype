@@ -1,7 +1,5 @@
-import {
-  initializeDailyLeaderboardsCache,
-  getDailyLeaderboard,
-} from "../../src/utils/daily-leaderboards";
+import { Mode } from "@monkeytype/contracts/schemas/shared";
+import { getDailyLeaderboard } from "../../src/utils/daily-leaderboards";
 
 const dailyLeaderboardsConfig = {
   enabled: true,
@@ -19,7 +17,6 @@ const dailyLeaderboardsConfig = {
       mode2: "\\d+",
     },
   ],
-  dailyLeaderboardCacheSize: 3,
   topResultsToAnnounce: 3,
   xpRewardBrackets: [],
   scheduleRewardsModeRules: [],
@@ -27,8 +24,6 @@ const dailyLeaderboardsConfig = {
 
 describe("Daily Leaderboards", () => {
   it("should properly handle valid and invalid modes", () => {
-    initializeDailyLeaderboardsCache(dailyLeaderboardsConfig);
-
     const modeCases = [
       {
         case: {
@@ -83,7 +78,7 @@ describe("Daily Leaderboards", () => {
     modeCases.forEach(({ case: { language, mode, mode2 }, expected }) => {
       const result = getDailyLeaderboard(
         language,
-        mode,
+        mode as Mode,
         mode2,
         dailyLeaderboardsConfig
       );

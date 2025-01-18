@@ -1,86 +1,139 @@
 import * as db from "../init/db";
 import { v4 as uuidv4 } from "uuid";
 import Logger from "../utils/logger";
-import MonkeyError from "../utils/error";
+import MonkeyError, { getErrorMessage } from "../utils/error";
 import { incrementBadAuth } from "./rate-limit";
-import { NextFunction, Response } from "express";
-import { MonkeyResponse, handleMonkeyResponse } from "../utils/monkey-response";
+import type { NextFunction, Response } from "express";
+import { isCustomCode } from "../constants/monkey-status-codes";
+
+import {
+  recordClientErrorByVersion,
+  recordServerErrorByVersion,
+} from "../utils/prometheus";
+import { isDevEnvironment } from "../utils/misc";
+import { ObjectId } from "mongodb";
+import { version } from "../version";
+import { addLog } from "../dal/logs";
+import { ExpressRequestWithContext } from "../api/types";
+
+type DBError = {
+  _id: ObjectId;
+  timestamp: number;
+  status: number;
+  uid: string;
+  message: string;
+  stack?: string;
+  endpoint: string;
+  method: string;
+  url: string;
+};
+
+type ErrorData = {
+  errorId?: string;
+  uid: string;
+};
 
 async function errorHandlingMiddleware(
   error: Error,
-  req: MonkeyTypes.Request,
+  req: ExpressRequestWithContext,
   res: Response,
   _next: NextFunction
 ): Promise<void> {
   try {
     const monkeyError = error as MonkeyError;
-
-    const monkeyResponse = new MonkeyResponse();
-    monkeyResponse.status = 500;
-    monkeyResponse.data = {
+    let status = 500;
+    const data: { errorId?: string; uid: string } = {
       errorId: monkeyError.errorId ?? uuidv4(),
       uid: monkeyError.uid ?? req.ctx?.decodedToken?.uid,
     };
+    let message = "Unknown error";
 
     if (/ECONNREFUSED.*27017/i.test(error.message)) {
-      monkeyResponse.message =
-        "Could not connect to the database. It may be down.";
+      message = "Could not connect to the database. It may be down.";
     } else if (error instanceof URIError || error instanceof SyntaxError) {
-      monkeyResponse.status = 400;
-      monkeyResponse.message = "Unprocessable request";
+      status = 400;
+      message = "Unprocessable request";
     } else if (error instanceof MonkeyError) {
-      monkeyResponse.message = error.message;
-      monkeyResponse.status = error.status;
+      message = error.message;
+      status = error.status;
     } else {
-      monkeyResponse.message = `Oops! Our monkeys dropped their bananas. Please try again later. - ${monkeyResponse.data.errorId}`;
+      message = `Oops! Our monkeys dropped their bananas. Please try again later. - ${data.errorId}`;
     }
 
-    await incrementBadAuth(req, res, monkeyResponse.status);
+    await incrementBadAuth(req, res, status);
 
-    if (process.env.MODE !== "dev" && monkeyResponse.status >= 500) {
-      const { uid, errorId } = monkeyResponse.data;
+    if (status >= 400 && status < 500) {
+      recordClientErrorByVersion(req.headers["x-client-version"] as string);
+    }
+
+    if (!isDevEnvironment() && status >= 500 && status !== 503) {
+      recordServerErrorByVersion(version);
+
+      const { uid, errorId } = data as {
+        uid: string;
+        errorId: string;
+      };
 
       try {
-        await Logger.logToDb(
+        await addLog(
           "system_error",
-          `${monkeyResponse.status} ${errorId} ${error.message} ${error.stack}`,
+          `${status} ${errorId} ${error.message} ${error.stack}`,
           uid
         );
-        await db.collection<any>("errors").insertOne({
-          _id: errorId,
+        await db.collection<DBError>("errors").insertOne({
+          _id: new ObjectId(errorId),
           timestamp: Date.now(),
-          status: monkeyResponse.status,
+          status: status,
           uid,
           message: error.message,
           stack: error.stack,
           endpoint: req.originalUrl,
+          method: req.method,
+          url: req.url,
         });
       } catch (e) {
         Logger.error("Logging to db failed.");
-        Logger.error(e);
+        Logger.error(getErrorMessage(e) ?? "Unknown error");
+        console.error(e);
       }
     } else {
       Logger.error(`Error: ${error.message} Stack: ${error.stack}`);
     }
 
-    if (monkeyResponse.status < 500) {
-      delete monkeyResponse.data["errorId"];
+    if (status < 500) {
+      delete data.errorId;
     }
 
-    return handleMonkeyResponse(monkeyResponse, res);
+    handleErrorResponse(res, status, message, data);
+    return;
   } catch (e) {
     Logger.error("Error handling middleware failed.");
-    Logger.error(e);
+    Logger.error(getErrorMessage(e) ?? "Unknown error");
+    console.error(e);
   }
 
-  return handleMonkeyResponse(
-    new MonkeyResponse(
-      "Something went really wrong, please contact support.",
-      undefined,
-      500
-    ),
-    res
+  handleErrorResponse(
+    res,
+    500,
+    "Something went really wrong, please contact support."
   );
+}
+
+function handleErrorResponse(
+  res: Response,
+  status: number,
+  message: string,
+  data?: ErrorData
+): void {
+  res.status(status);
+  if (isCustomCode(status)) {
+    res.statusMessage = message;
+  }
+
+  //@ts-expect-error ignored so that we can see message in swagger stats
+  res.monkeyMessage = message;
+
+  res.json({ message, data: data ?? null });
 }
 
 export default errorHandlingMiddleware;

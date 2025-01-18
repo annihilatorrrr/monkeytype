@@ -1,31 +1,91 @@
 import Config from "../config";
-import Howler, { Howl } from "howler";
 import * as ConfigEvent from "../observables/config-event";
-import {
-  createErrorMessage,
-  randomElementFromArray,
-  randomIntFromRange,
-} from "../utils/misc";
+import { createErrorMessage } from "../utils/misc";
+import { randomElementFromArray } from "../utils/arrays";
+import { randomIntFromRange } from "@monkeytype/util/numbers";
 import { leftState, rightState } from "../test/shift-tracker";
 import { capsState } from "../test/caps-warning";
 import * as Notifications from "../elements/notifications";
 
-interface ClickSounds {
-  [key: string]: {
-    sounds: Howler.Howl[];
-    counter: number;
-  }[];
+import type { Howl } from "howler";
+import { PlaySoundOnClick } from "@monkeytype/contracts/schemas/configs";
+
+async function gethowler(): Promise<typeof import("howler")> {
+  return await import("howler");
 }
 
-let errorSound: Howler.Howl | null = null;
+type ClickSounds = Record<
+  string,
+  {
+    sounds: Howl[];
+    counter: number;
+  }[]
+>;
+
+type ErrorSounds = Record<
+  string,
+  {
+    sounds: Howl[];
+    counter: number;
+  }[]
+>;
+
+let errorSounds: ErrorSounds | null = null;
 let clickSounds: ClickSounds | null = null;
 
-export function initErrorSound(): void {
-  if (errorSound !== null) return;
-  errorSound = new Howl({ src: ["../sound/error.wav"] });
+async function initErrorSound(): Promise<void> {
+  const Howl = (await gethowler()).Howl;
+  if (errorSounds !== null) return;
+  errorSounds = {
+    1: [
+      {
+        sounds: [
+          new Howl({ src: "../sound/error1/error1_1.wav" }),
+          new Howl({ src: "../sound/error1/error1_1.wav" }),
+        ],
+        counter: 0,
+      },
+    ],
+    2: [
+      {
+        sounds: [
+          new Howl({ src: "../sound/error2/error2_1.wav" }),
+          new Howl({ src: "../sound/error2/error2_1.wav" }),
+        ],
+        counter: 0,
+      },
+    ],
+    3: [
+      {
+        sounds: [
+          new Howl({ src: "../sound/error3/error3_1.wav" }),
+          new Howl({ src: "../sound/error3/error3_1.wav" }),
+        ],
+        counter: 0,
+      },
+    ],
+    4: [
+      {
+        sounds: [
+          new Howl({ src: "../sound/error4/error4_1.wav" }),
+          new Howl({ src: "../sound/error4/error4_1.wav" }),
+        ],
+        counter: 0,
+      },
+      {
+        sounds: [
+          new Howl({ src: "../sound/error4/error4_2.wav" }),
+          new Howl({ src: "../sound/error4/error4_2.wav" }),
+        ],
+        counter: 0,
+      },
+    ],
+  };
+  Howler.volume(Config.soundVolume);
 }
 
-export function init(): void {
+async function init(): Promise<void> {
+  const Howl = (await gethowler()).Howl;
   if (clickSounds !== null) return;
   clickSounds = {
     1: [
@@ -231,13 +291,129 @@ export function init(): void {
         counter: 0,
       },
     ],
+    14: [
+      {
+        sounds: [
+          new Howl({ src: "../sound/click14/click14_1.wav" }),
+          new Howl({ src: "../sound/click14/click14_1.wav" }),
+        ],
+        counter: 0,
+      },
+      {
+        sounds: [
+          new Howl({ src: "../sound/click14/click14_2.wav" }),
+          new Howl({ src: "../sound/click14/click14_2.wav" }),
+        ],
+        counter: 0,
+      },
+      {
+        sounds: [
+          new Howl({ src: "../sound/click14/click14_3.wav" }),
+          new Howl({ src: "../sound/click14/click14_3.wav" }),
+        ],
+        counter: 0,
+      },
+      {
+        sounds: [
+          new Howl({ src: "../sound/click14/click14_4.wav" }),
+          new Howl({ src: "../sound/click14/click14_4.wav" }),
+        ],
+        counter: 0,
+      },
+      {
+        sounds: [
+          new Howl({ src: "../sound/click14/click14_5.wav" }),
+          new Howl({ src: "../sound/click14/click14_5.wav" }),
+        ],
+        counter: 0,
+      },
+      {
+        sounds: [
+          new Howl({ src: "../sound/click14/click14_6.wav" }),
+          new Howl({ src: "../sound/click14/click14_6.wav" }),
+        ],
+        counter: 0,
+      },
+      {
+        sounds: [
+          new Howl({ src: "../sound/click14/click14_7.wav" }),
+          new Howl({ src: "../sound/click14/click14_7.wav" }),
+        ],
+        counter: 0,
+      },
+      {
+        sounds: [
+          new Howl({ src: "../sound/click14/click14_8.wav" }),
+          new Howl({ src: "../sound/click14/click14_8.wav" }),
+        ],
+        counter: 0,
+      },
+    ],
+    15: [
+      {
+        sounds: [
+          new Howl({ src: "../sound/click15/click15_1.wav" }),
+          new Howl({ src: "../sound/click15/click15_1.wav" }),
+        ],
+        counter: 0,
+      },
+      {
+        sounds: [
+          new Howl({ src: "../sound/click15/click15_2.wav" }),
+          new Howl({ src: "../sound/click15/click15_2.wav" }),
+        ],
+        counter: 0,
+      },
+      {
+        sounds: [
+          new Howl({ src: "../sound/click15/click15_3.wav" }),
+          new Howl({ src: "../sound/click15/click15_3.wav" }),
+        ],
+        counter: 0,
+      },
+      {
+        sounds: [
+          new Howl({ src: "../sound/click15/click15_4.wav" }),
+          new Howl({ src: "../sound/click15/click15_4.wav" }),
+        ],
+        counter: 0,
+      },
+      {
+        sounds: [
+          new Howl({ src: "../sound/click15/click15_5.wav" }),
+          new Howl({ src: "../sound/click15/click15_5.wav" }),
+        ],
+        counter: 0,
+      },
+    ],
   };
+  Howler.volume(Config.soundVolume);
 }
 
-export function previewClick(val: string): void {
-  if (clickSounds === null) init();
-  (clickSounds as ClickSounds)[val][0].sounds[0].seek(0);
-  (clickSounds as ClickSounds)[val][0].sounds[0].play();
+export async function previewClick(val: string): Promise<void> {
+  if (clickSounds === null) await init();
+
+  const safeClickSounds = clickSounds as ClickSounds;
+
+  const clickSoundIds = Object.keys(safeClickSounds);
+  if (!clickSoundIds.includes(val)) return;
+
+  //@ts-expect-error
+  safeClickSounds[val][0].sounds[0].seek(0);
+  //@ts-expect-error
+  safeClickSounds[val][0].sounds[0].play();
+}
+
+export async function previewError(val: string): Promise<void> {
+  if (errorSounds === null) await initErrorSound();
+
+  const safeErrorSounds = errorSounds as ErrorSounds;
+
+  const errorSoundIds = Object.keys(safeErrorSounds);
+  if (!errorSoundIds.includes(val)) return;
+
+  errorSounds?.[val]?.[0]?.sounds[0]?.seek(0);
+  errorSounds?.[val]?.[0]?.sounds[0]?.play();
 }
 
 let currentCode = "KeyA";
@@ -262,7 +438,7 @@ const notes = {
 } as const;
 
 type ValidNotes = keyof typeof notes;
-type ValidFrequencies = typeof notes[ValidNotes];
+type ValidFrequencies = (typeof notes)[ValidNotes];
 
 type GetNoteFrequencyCallback = (octave: number) => number;
 
@@ -271,7 +447,7 @@ function bindToNote(
   octaveOffset = 0
 ): GetNoteFrequencyCallback {
   return (octave: number): number => {
-    return noteFrequencies[octave + octaveOffset];
+    return noteFrequencies[octave + octaveOffset] ?? 0;
   };
 }
 
@@ -315,10 +491,7 @@ const codeToNote: Record<string, GetNoteFrequencyCallback> = {
   BracketRight: bindToNote(notes.G, 2),
 };
 
-type DynamicClickSounds = Extract<
-  MonkeyTypes.PlaySoundOnClick,
-  "8" | "9" | "10" | "11"
->;
+type DynamicClickSounds = Extract<PlaySoundOnClick, "8" | "9" | "10" | "11">;
 type SupportedOscillatorTypes = Exclude<OscillatorType, "custom">;
 
 const clickSoundIdsToOscillatorType: Record<
@@ -355,11 +528,11 @@ const scales: Record<ValidScales, ValidNotes[]> = {
   wholetone: ["C", "D", "E", "Gb", "Ab", "Bb"],
 };
 
-interface ScaleData {
+type ScaleData = {
   octave: number; // current octave of scale
   direction: number; // whether scale is ascending or descending
   position: number; // current position in scale
-}
+};
 
 function createPreviewScale(scaleName: ValidScales): () => void {
   // We use a JavaScript closure to create a preview function that can be called multiple times and progress through the scale
@@ -369,17 +542,17 @@ function createPreviewScale(scaleName: ValidScales): () => void {
     direction: 1,
   };
 
-  return () => {
-    if (clickSounds === null) init();
+  return async () => {
+    if (clickSounds === null) await init();
     playScale(scaleName, scale);
   };
 }
 
-interface ScaleMeta {
+type ScaleMeta = {
   name: ValidScales;
   preview: ReturnType<typeof createPreviewScale>;
   meta: ScaleData;
-}
+};
 
 const defaultScaleData: ScaleData = {
   position: 0,
@@ -388,7 +561,7 @@ const defaultScaleData: ScaleData = {
 };
 
 export const scaleConfigurations: Record<
-  Extract<MonkeyTypes.PlaySoundOnClick, "12" | "13">,
+  Extract<PlaySoundOnClick, "12" | "13">,
   ScaleMeta
 > = {
   "12": {
@@ -403,7 +576,7 @@ export const scaleConfigurations: Record<
   },
 };
 
-export function playScale(scale: ValidScales, scaleMeta: ScaleData): void {
+function playScale(scale: ValidScales, scaleMeta: ScaleData): void {
   if (audioCtx === undefined) {
     initAudioContext();
   }
@@ -422,13 +595,15 @@ export function playScale(scale: ValidScales, scaleMeta: ScaleData): void {
     scaleMeta.direction = 1;
   }
 
-  const currentFrequency = notes[scales[scale][randomNote]][scaleMeta.octave];
+  const note = scales[scale][randomNote] as ValidNotes;
+
+  const currentFrequency = notes[note][scaleMeta.octave] as number;
 
   const oscillatorNode = audioCtx.createOscillator();
   const gainNode = audioCtx.createGain();
 
   oscillatorNode.type = "sine";
-  gainNode.gain.value = parseFloat(Config.soundVolume) / 10;
+  gainNode.gain.value = Config.soundVolume / 10;
   oscillatorNode.connect(gainNode);
   gainNode.connect(audioCtx.destination);
   oscillatorNode.frequency.value = currentFrequency;
@@ -453,7 +628,7 @@ export function playNote(
 
   const baseOctave = 3;
   const octave = baseOctave + (leftState || rightState || capsState ? 1 : 0);
-  const currentFrequency = codeToNote[currentCode](octave);
+  const currentFrequency = codeToNote[currentCode]?.(octave);
 
   const oscillatorNode = audioCtx.createOscillator();
   const gainNode = audioCtx.createGain();
@@ -463,18 +638,18 @@ export function playNote(
     clickSoundIdsToOscillatorType[
       Config.playSoundOnClick as DynamicClickSounds
     ];
-  gainNode.gain.value = parseFloat(Config.soundVolume) / 10;
+  gainNode.gain.value = Config.soundVolume / 10;
 
   oscillatorNode.connect(gainNode);
   gainNode.connect(audioCtx.destination);
 
-  oscillatorNode.frequency.value = currentFrequency;
+  oscillatorNode.frequency.value = currentFrequency as number;
   oscillatorNode.start(audioCtx.currentTime);
   gainNode.gain.setTargetAtTime(0, audioCtx.currentTime, 0.15); //remove click sound
   oscillatorNode.stop(audioCtx.currentTime + 0.5);
 }
 
-export function playClick(): void {
+export async function playClick(codeOverride?: string): Promise<void> {
   if (Config.playSoundOnClick === "off") return;
 
   if (Config.playSoundOnClick in scaleConfigurations) {
@@ -487,36 +662,52 @@ export function playClick(): void {
   }
 
   if (Config.playSoundOnClick in clickSoundIdsToOscillatorType) {
-    playNote();
+    playNote(codeOverride ?? undefined);
     return;
   }
 
-  if (clickSounds === null) init();
+  if (clickSounds === null) await init();
 
-  const randomSound = randomElementFromArray(
-    (clickSounds as ClickSounds)[Config.playSoundOnClick]
-  );
+  const sounds = (clickSounds as ClickSounds)[Config.playSoundOnClick];
+
+  if (sounds === undefined) throw new Error("Invalid click sound ID");
+
+  const randomSound = randomElementFromArray(sounds);
+  const soundToPlay = randomSound.sounds[randomSound.counter] as Howl;
 
   randomSound.counter++;
   if (randomSound.counter === 2) randomSound.counter = 0;
-  randomSound.sounds[randomSound.counter].seek(0);
-  randomSound.sounds[randomSound.counter].play();
+  soundToPlay.seek(0);
+  soundToPlay.play();
 }
 
-export function playError(): void {
-  if (!Config.playSoundOnError) return;
-  if (errorSound === null) initErrorSound();
-  (errorSound as Howler.Howl).seek(0);
-  (errorSound as Howler.Howl).play();
+export async function playError(): Promise<void> {
+  if (Config.playSoundOnError === "off") return;
+  if (errorSounds === null) await initErrorSound();
+
+  const sounds = (errorSounds as ErrorSounds)[Config.playSoundOnError];
+  if (sounds === undefined) throw new Error("Invalid error sound ID");
+
+  const randomSound = randomElementFromArray(sounds);
+  const soundToPlay = randomSound.sounds[randomSound.counter] as Howl;
+
+  randomSound.counter++;
+  if (randomSound.counter === 2) randomSound.counter = 0;
+  soundToPlay.seek(0);
+  soundToPlay.play();
 }
 
-export function setVolume(val: string): void {
-  // not sure why it complains but it works
-  // @ts-ignore
-  Howler.Howler.volume(val);
+function setVolume(val: number): void {
+  try {
+    Howler.volume(val);
+  } catch (e) {
+    //
+  }
 }
 
 ConfigEvent.subscribe((eventKey, eventValue) => {
-  if (eventKey === "playSoundOnClick" && eventValue !== "off") init();
-  if (eventKey === "soundVolume") setVolume(eventValue as string);
+  if (eventKey === "playSoundOnClick" && eventValue !== "off") void init();
+  if (eventKey === "soundVolume") {
+    setVolume(parseFloat(eventValue as string));
+  }
 });

@@ -1,13 +1,15 @@
 import * as UpdateConfig from "../../config";
+import { Command, CommandsSubgroup } from "../types";
 
-const subgroup: MonkeyTypes.CommandsSubgroup = {
-  title: "Timer/progress opacity...",
+const subgroup: CommandsSubgroup = {
+  title: "Live stats opacity...",
   configKey: "timerOpacity",
   list: [
     {
       id: "setTimerOpacity.25",
       display: ".25",
       configValue: 0.25,
+      alias: "timer",
       exec: (): void => {
         UpdateConfig.setTimerOpacity("0.25");
       },
@@ -16,6 +18,7 @@ const subgroup: MonkeyTypes.CommandsSubgroup = {
       id: "setTimerOpacity.5",
       display: ".5",
       configValue: 0.5,
+      alias: "timer",
       exec: (): void => {
         UpdateConfig.setTimerOpacity("0.5");
       },
@@ -24,6 +27,7 @@ const subgroup: MonkeyTypes.CommandsSubgroup = {
       id: "setTimerOpacity.75",
       display: ".75",
       configValue: 0.75,
+      alias: "timer",
       exec: (): void => {
         UpdateConfig.setTimerOpacity("0.75");
       },
@@ -32,6 +36,7 @@ const subgroup: MonkeyTypes.CommandsSubgroup = {
       id: "setTimerOpacity1",
       display: "1",
       configValue: 1,
+      alias: "timer",
       exec: (): void => {
         UpdateConfig.setTimerOpacity("1");
       },
@@ -39,11 +44,12 @@ const subgroup: MonkeyTypes.CommandsSubgroup = {
   ],
 };
 
-const commands: MonkeyTypes.Command[] = [
+const commands: Command[] = [
   {
     id: "changeTimerOpacity",
-    display: "Timer/progress opacity...",
-    icon: "fa-clock",
+    display: "Live stats opacity...",
+    icon: "fa-chart-pie",
+    alias: "timer speed wpm burst acc",
     subgroup,
   },
 ];

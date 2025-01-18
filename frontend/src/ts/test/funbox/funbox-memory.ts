@@ -1,23 +1,31 @@
-type SetFunction = (...params: any[]) => any;
+import { ConfigValue } from "@monkeytype/contracts/schemas/configs";
 
-let settingsMemory: {
-  [key: string]: { value: any; setFunction: SetFunction };
-} = {};
+type SetFunction<T> = (param: T, nosave?: boolean) => boolean;
 
-export function save(
+type ValueAndSetFunction<T> = {
+  value: T;
+  setFunction: SetFunction<T>;
+};
+
+type SettingsMemory<T> = Record<string, ValueAndSetFunction<T>>;
+
+let settingsMemory: SettingsMemory<ConfigValue> = {};
+
+export function save<T extends ConfigValue>(
   settingName: string,
-  value: any,
-  setFunction: SetFunction
+  value: T,
+  setFunction: SetFunction<T>
 ): void {
   settingsMemory[settingName] ??= {
     value,
-    setFunction,
+    setFunction: setFunction as SetFunction<ConfigValue>,
   };
 }
 
 export function load(): void {
   Object.keys(settingsMemory).forEach((setting) => {
-    settingsMemory[setting].setFunction(settingsMemory[setting].value, true);
+    const memory = settingsMemory[setting] as ValueAndSetFunction<ConfigValue>;
+    memory.setFunction(memory.value, true);
   });
   settingsMemory = {};
 }

@@ -3,6 +3,8 @@ import _ from "lodash";
 import { join } from "path";
 import IORedis from "ioredis";
 import Logger from "../utils/logger";
+import { isDevEnvironment } from "../utils/misc";
+import { getErrorMessage } from "../utils/error";
 
 let connection: IORedis.Redis;
 let connected = false;
@@ -28,10 +30,10 @@ export async function connect(): Promise<void> {
     return;
   }
 
-  const { REDIS_URI, MODE } = process.env;
+  const { REDIS_URI } = process.env;
 
-  if (!REDIS_URI) {
-    if (MODE === "dev") {
+  if (!(REDIS_URI ?? "")) {
+    if (isDevEnvironment()) {
       Logger.warning("No redis configuration provided. Running without redis.");
       return;
     }
@@ -52,8 +54,8 @@ export async function connect(): Promise<void> {
 
     connected = true;
   } catch (error) {
-    Logger.error(error.message);
-    if (MODE === "dev") {
+    Logger.error(getErrorMessage(error) ?? "Unknown error");
+    if (isDevEnvironment()) {
       await connection.quit();
       Logger.warning(
         `Failed to connect to redis. Continuing in dev mode, running without redis.`
@@ -73,7 +75,7 @@ export function isConnected(): boolean {
 
 export function getConnection(): IORedis.Redis | undefined {
   const status = connection?.status;
-  if (!connection || status !== "ready") {
+  if (connection === undefined || status !== "ready") {
     return undefined;
   }
 

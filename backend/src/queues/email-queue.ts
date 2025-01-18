@@ -4,11 +4,11 @@ const QUEUE_NAME = "email-tasks";
 
 export type EmailType = "verify" | "resetPassword";
 
-export interface EmailTask<M extends EmailType> {
+export type EmailTask<M extends EmailType> = {
   type: M;
   email: string;
   ctx: EmailTaskContexts[M];
-}
+};
 
 export type EmailTaskContexts = {
   verify: {
@@ -59,7 +59,7 @@ export default new EmailQueue(QUEUE_NAME, {
   defaultJobOptions: {
     removeOnComplete: true,
     removeOnFail: true,
-    attempts: 3,
+    attempts: 1,
     backoff: {
       type: "exponential",
       delay: 2000,

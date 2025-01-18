@@ -1,5 +1,4 @@
-import axios from "axios";
-import { Section } from "../utils/misc";
+import { Section } from "../utils/json-data";
 
 const bannedChars = ["—", "_", " "];
 const maxWords = 100;
@@ -18,38 +17,44 @@ export class Poem extends Section {
   cleanUpText(): void {
     let count = 0;
     const scrubbedWords = [];
-    for (let i = 0; i < this.words.length; i++) {
+
+    for (const word of this.words) {
       let scrubbed = "";
-      for (let j = 0; j < this.words[i].length; j++) {
-        if (!bannedChars.includes(this.words[i][j])) {
-          scrubbed += this.words[i][j];
+      for (const char of word) {
+        if (!bannedChars.includes(char)) {
+          scrubbed += char;
         }
       }
 
-      if (scrubbed == "") continue;
+      if (scrubbed === "") continue;
 
       scrubbedWords.push(scrubbed);
       count++;
 
-      if (count == maxWords) break;
+      if (count === maxWords) break;
     }
 
     this.words = scrubbedWords;
   }
 }
 
-interface PoemObject {
+type PoemObject = {
   lines: string[];
   title: string;
   author: string;
-}
+};
 
 export async function getPoem(): Promise<Section | false> {
   console.log("Getting poem");
 
   try {
-    const response = await axios.get(apiURL);
-    const poemObj: PoemObject = response.data[0];
+    const response = await fetch(apiURL);
+    const data = (await response.json()) as PoemObject[];
+    const poemObj = data[0];
+
+    if (!poemObj) {
+      return false;
+    }
 
     const words: string[] = [];
 

@@ -1,31 +1,30 @@
 import Config from "../config";
 
+const el = document.querySelector("#capsWarning") as HTMLElement;
+const isMacOs = navigator.platform.startsWith("Mac");
+
 export let capsState = false;
 
 let visible = false;
 
 function show(): void {
   if (!visible) {
-    $("#capsWarning").removeClass("hidden");
+    el?.classList.remove("hidden");
     visible = true;
   }
 }
 
 function hide(): void {
   if (visible) {
-    $("#capsWarning").addClass("hidden");
+    el?.classList.add("hidden");
     visible = false;
   }
 }
 
-$("#wordsInput").on("keydown", function (event) {
-  if (
-    event?.originalEvent?.getModifierState &&
-    event?.originalEvent?.getModifierState("CapsLock")
-  ) {
-    capsState = true;
-  } else {
-    capsState = false;
+function update(event: JQuery.KeyDownEvent | JQuery.KeyUpEvent): void {
+  const modState = event?.originalEvent?.getModifierState?.("CapsLock");
+  if (modState !== undefined) {
+    capsState = modState;
   }
 
   try {
@@ -35,24 +34,10 @@ $("#wordsInput").on("keydown", function (event) {
       hide();
     }
   } catch {}
-});
+}
 
-$("#wordsInput").on("keyup", function (event) {
-  if (
-    event?.originalEvent?.getModifierState &&
-    event?.originalEvent?.getModifierState("CapsLock")
-  ) {
-    //filthy fix but optional chaining refues to work
-    capsState = true;
-  } else {
-    capsState = false;
-  }
+$(document).on("keyup", update);
 
-  try {
-    if (Config.capsLockWarning && capsState) {
-      show();
-    } else {
-      hide();
-    }
-  } catch {}
+$(document).on("keydown", (event) => {
+  if (isMacOs) update(event);
 });

@@ -1,11 +1,13 @@
 import Ape from "../ape";
 import Page from "./page";
 import * as Profile from "../elements/profile";
-import * as PbTables from "../account/pb-tables";
+import * as PbTables from "../elements/account/pb-tables";
 import * as Notifications from "../elements/notifications";
 import { checkIfGetParameterExists } from "../utils/misc";
-import * as UserReportPopup from "../popups/user-report-popup";
-import * as Skeleton from "../popups/skeleton";
+import * as UserReportModal from "../modals/user-report";
+import * as Skeleton from "../utils/skeleton";
+import { UserProfile } from "@monkeytype/contracts/schemas/users";
+import { PersonalBests } from "@monkeytype/contracts/schemas/shared";
 
 function reset(): void {
   $(".page.pageProfile .preloader").removeClass("hidden");
@@ -19,15 +21,18 @@ function reset(): void {
             <div class="avatar"></div>
           </div>
           <div>
-            <div class="name">-</div>
+             <div class="user">
+              <div class="name">-</div>
+              <div class="userFlags"></div>
+            </div>
             <div class="badges"></div>
             <div class="allBadges"></div>
             <div class="joined" data-balloon-pos="up">-</div>
 	          <div class="streak" data-balloon-pos="up">-</div>
           </div>
           <div class="levelAndBar">
-            <div class="level">-</div>
-            <div class="xpBar">
+            <div class="level" data-balloon-pos="up">-</div>
+            <div class="xpBar" data-balloon-pos="up">
               <div class="bar" style="width: 0%;"></div>
             </div>
             <div class="xp" data-balloon-pos="up">-/-</div>
@@ -67,13 +72,13 @@ function reset(): void {
           <div class="value">-</div>
         </div>
         <div class="buttonGroup">
-          <div
-            class="userReportButton button"
+          <button
+            class="userReportButton"
             data-balloon-pos="left"
             aria-label="Report user"
           >
             <i class="fas fa-flag"></i>
-          </div>
+          </button>
         </div>
       </div>
       <div class="leaderboardsPositions">
@@ -81,10 +86,12 @@ function reset(): void {
         <div class="group t15">
           <div class="testType">15 seconds</div>
           <div class="pos">-</div>
+          <div class="topPercentage">-</div>
         </div>
         <div class="group t60">
           <div class="testType">60 seconds</div>
           <div class="pos">-</div>
+          <div class="topPercentage">-</div>
         </div>
       </div>
       <div class="pbsWords">
@@ -146,47 +153,56 @@ function reset(): void {
             <div class="acc">-</div>
           </div>
         </div>
-      </div>`);
+      </div><div class="lbOptOutReminder hidden"></div>`);
 }
 
-interface UpdateOptions {
+type UpdateOptions = {
   uidOrName?: string;
-  data?: any;
-}
+  data?: undefined | UserProfile;
+};
 
 async function update(options: UpdateOptions): Promise<void> {
   const getParamExists = checkIfGetParameterExists("isUid");
   if (options.data) {
     $(".page.pageProfile .preloader").addClass("hidden");
-    Profile.update("profile", options.data);
-    PbTables.update(options.data.personalBests, true);
-  } else if (options.uidOrName) {
-    const response =
-      getParamExists === true
-        ? await Ape.users.getProfileByUid(options.uidOrName)
-        : await Ape.users.getProfileByName(options.uidOrName);
+    await Profile.update("profile", options.data);
+    PbTables.update(
+      // this cast is fine because pb tables can handle the partial data inside user profiles
+      options.data.personalBests as unknown as PersonalBests,
+      true
+    );
+  } else if (options.uidOrName !== undefined && options.uidOrName !== "") {
+    const response = await Ape.users.getProfile({
+      params: { uidOrName: options.uidOrName },
+      query: { isUid: getParamExists },
+    });
+
     $(".page.pageProfile .preloader").addClass("hidden");
 
     if (response.status === 404) {
-      const message =
-        getParamExists === true
-          ? "User not found"
-          : `User ${options.uidOrName} not found`;
+      const message = getParamExists
+        ? "User not found"
+        : `User ${options.uidOrName} not found`;
       $(".page.pageProfile .preloader").addClass("hidden");
       $(".page.pageProfile .error").removeClass("hidden");
       $(".page.pageProfile .error .message").text(message);
-    } else if (response.status !== 200) {
-      // $(".page.pageProfile .failedToLoad").removeClass("hidden");
-      return Notifications.add(
-        "Failed to load profile: " + response.message,
-        -1
+    } else if (response.status === 200) {
+      window.history.replaceState(
+        null,
+        "",
+        `/profile/${response.body.data.name}`
+      );
+      await Profile.update("profile", response.body.data);
+      // this cast is fine because pb tables can handle the partial data inside user profiles
+      PbTables.update(
+        response.body.data.personalBests as unknown as PersonalBests,
+        true
       );
     } else {
-      window.history.replaceState(null, "", `/profile/${response.data.name}`);
+      // $(".page.pageProfile .failedToLoad").removeClass("hidden");
+      Notifications.add("Failed to load profile: " + response.body.message, -1);
+      return;
     }
-
-    Profile.update("profile", response.data);
-    PbTables.update(response.data.personalBests, true);
   } else {
     Notifications.add("Missing update parameter!", -1);
   }
@@ -195,32 +211,31 @@ async function update(options: UpdateOptions): Promise<void> {
 $(".page.pageProfile").on("click", ".profile .userReportButton", () => {
   const uid = $(".page.pageProfile .profile").attr("uid") ?? "";
   const name = $(".page.pageProfile .profile").attr("name") ?? "";
+  const lbOptOut =
+    ($(".page.pageProfile .profile").attr("lbOptOut") ?? "false") === "true";
 
-  UserReportPopup.show({ uid, name });
+  void UserReportModal.show({ uid, name, lbOptOut });
 });
 
-export const page = new Page(
-  "profile",
-  $(".page.pageProfile"),
-  "/profile",
-  async () => {
-    //
-  },
-  async () => {
+export const page = new Page<undefined | UserProfile>({
+  name: "profile",
+  element: $(".page.pageProfile"),
+  path: "/profile",
+  afterHide: async (): Promise<void> => {
     Skeleton.remove("pageProfile");
     reset();
   },
-  async (options) => {
-    Skeleton.append("pageProfile", "middle");
-    const uidOrName = options?.params?.["uidOrName"];
+  beforeShow: async (options): Promise<void> => {
+    Skeleton.append("pageProfile", "main");
+    const uidOrName = options?.params?.["uidOrName"] ?? "";
     if (uidOrName) {
       $(".page.pageProfile .preloader").removeClass("hidden");
       $(".page.pageProfile .search").addClass("hidden");
       $(".page.pageProfile .content").removeClass("hidden");
       reset();
-      update({
+      void update({
         uidOrName,
-        data: options?.["data"],
+        data: options?.data,
       });
     } else {
       $(".page.pageProfile .preloader").addClass("hidden");
@@ -228,9 +243,6 @@ export const page = new Page(
       $(".page.pageProfile .content").addClass("hidden");
     }
   },
-  async () => {
-    //
-  }
-);
+});
 
 Skeleton.save("pageProfile");

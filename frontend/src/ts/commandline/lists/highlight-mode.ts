@@ -1,6 +1,7 @@
 import * as UpdateConfig from "../../config";
+import { Command, CommandsSubgroup } from "../types";
 
-const subgroup: MonkeyTypes.CommandsSubgroup = {
+const subgroup: CommandsSubgroup = {
   title: "Highlight mode...",
   configKey: "highlightMode",
   list: [
@@ -28,10 +29,34 @@ const subgroup: MonkeyTypes.CommandsSubgroup = {
         UpdateConfig.setHighlightMode("word");
       },
     },
+    {
+      id: "setHighlightModeNextWord",
+      display: "next word",
+      configValue: "next_word",
+      exec: (): void => {
+        UpdateConfig.setHighlightMode("next_word");
+      },
+    },
+    {
+      id: "setHighlightModeNextTwoWords",
+      display: "next two words",
+      configValue: "next_two_words",
+      exec: (): void => {
+        UpdateConfig.setHighlightMode("next_two_words");
+      },
+    },
+    {
+      id: "setHighlightModeNextThreeWords",
+      display: "next three words",
+      configValue: "next_three_words",
+      exec: (): void => {
+        UpdateConfig.setHighlightMode("next_three_words");
+      },
+    },
   ],
 };
 
-const commands: MonkeyTypes.Command[] = [
+const commands: Command[] = [
   {
     id: "changeHighlightMode",
     display: "Highlight mode...",

@@ -1,9 +1,18 @@
 import * as UpdateConfig from "../../config";
+import { Command, CommandsSubgroup } from "../types";
 
-const subgroup: MonkeyTypes.CommandsSubgroup = {
+const subgroup: CommandsSubgroup = {
   title: "Change pace caret style...",
   configKey: "paceCaretStyle",
   list: [
+    {
+      id: "setPaceCaretStyleOff",
+      display: "off",
+      configValue: "off",
+      exec: (): void => {
+        UpdateConfig.setPaceCaretStyle("off");
+      },
+    },
     {
       id: "setPaceCaretStyleDefault",
       display: "line",
@@ -57,7 +66,7 @@ const subgroup: MonkeyTypes.CommandsSubgroup = {
   ],
 };
 
-const commands: MonkeyTypes.Command[] = [
+const commands: Command[] = [
   {
     id: "changePaceCaretStyle",
     display: "Pace caret style...",

@@ -1,7 +1,8 @@
 import * as TestState from "../../test/test-state";
 import * as ModesNotice from "../../elements/modes-notice";
+import { Command, CommandsSubgroup } from "../types";
 
-const subgroup: MonkeyTypes.CommandsSubgroup = {
+const subgroup: CommandsSubgroup = {
   title: "Result saving...",
   list: [
     {
@@ -10,7 +11,7 @@ const subgroup: MonkeyTypes.CommandsSubgroup = {
       alias: "disabled incognito",
       exec: (): void => {
         TestState.setSaving(false);
-        ModesNotice.update();
+        void ModesNotice.update();
       },
     },
     {
@@ -19,13 +20,13 @@ const subgroup: MonkeyTypes.CommandsSubgroup = {
       alias: "enabled incognito",
       exec: (): void => {
         TestState.setSaving(true);
-        ModesNotice.update();
+        void ModesNotice.update();
       },
     },
   ],
 };
 
-const commands: MonkeyTypes.Command[] = [
+const commands: Command[] = [
   {
     id: "setResultSaving",
     display: "Result saving...",

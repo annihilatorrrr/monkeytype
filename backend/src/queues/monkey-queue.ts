@@ -1,14 +1,15 @@
 import IORedis from "ioredis";
 import {
-  BulkJobOptions,
-  JobsOptions,
+  type BulkJobOptions,
+  type ConnectionOptions,
+  type JobsOptions,
   Queue,
-  QueueOptions,
+  type QueueOptions,
   QueueScheduler,
 } from "bullmq";
 
 export class MonkeyQueue<T> {
-  private jobQueue: Queue;
+  private jobQueue: Queue | undefined;
   private _queueScheduler: QueueScheduler;
   public readonly queueName: string;
   private queueOpts: QueueOptions;
@@ -19,32 +20,30 @@ export class MonkeyQueue<T> {
   }
 
   init(redisConnection?: IORedis.Redis): void {
-    if (this.jobQueue || !redisConnection) {
+    if (this.jobQueue !== undefined || !redisConnection) {
       return;
     }
 
     this.jobQueue = new Queue(this.queueName, {
       ...this.queueOpts,
-      connection: redisConnection,
+      connection: redisConnection as ConnectionOptions,
     });
 
     this._queueScheduler = new QueueScheduler(this.queueName, {
-      connection: redisConnection,
+      connection: redisConnection as ConnectionOptions,
     });
   }
 
   async add(taskName: string, task: T, jobOpts?: JobsOptions): Promise<void> {
-    if (!this.jobQueue) {
+    if (this.jobQueue === undefined) {
       return;
     }
 
     await this.jobQueue.add(taskName, task, jobOpts);
   }
 
-  async getJobCounts(): Promise<{
-    [index: string]: number;
-  }> {
-    if (!this.jobQueue) {
+  async getJobCounts(): Promise<Record<string, number>> {
+    if (this.jobQueue === undefined) {
       return {};
     }
 
@@ -54,7 +53,7 @@ export class MonkeyQueue<T> {
   async addBulk(
     tasks: { name: string; data: T; opts?: BulkJobOptions }[]
   ): Promise<void> {
-    if (!this.jobQueue) {
+    if (this.jobQueue === undefined) {
       return;
     }
 

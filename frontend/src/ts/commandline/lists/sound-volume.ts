@@ -1,7 +1,8 @@
 import * as UpdateConfig from "../../config";
 import * as SoundController from "../../controllers/sound-controller";
+import { Command, CommandsSubgroup } from "../types";
 
-const subgroup: MonkeyTypes.CommandsSubgroup = {
+const subgroup: CommandsSubgroup = {
   title: "Sound volume...",
   configKey: "soundVolume",
   list: [
@@ -10,8 +11,8 @@ const subgroup: MonkeyTypes.CommandsSubgroup = {
       display: "quiet",
       configValue: "0.1",
       exec: (): void => {
-        UpdateConfig.setSoundVolume("0.1");
-        SoundController.playClick();
+        UpdateConfig.setSoundVolume(0.1);
+        void SoundController.playClick();
       },
     },
     {
@@ -19,8 +20,8 @@ const subgroup: MonkeyTypes.CommandsSubgroup = {
       display: "medium",
       configValue: "0.5",
       exec: (): void => {
-        UpdateConfig.setSoundVolume("0.5");
-        SoundController.playClick();
+        UpdateConfig.setSoundVolume(0.5);
+        void SoundController.playClick();
       },
     },
     {
@@ -28,14 +29,24 @@ const subgroup: MonkeyTypes.CommandsSubgroup = {
       display: "loud",
       configValue: "1.0",
       exec: (): void => {
-        UpdateConfig.setSoundVolume("1.0");
-        SoundController.playClick();
+        UpdateConfig.setSoundVolume(1.0);
+        void SoundController.playClick();
+      },
+    },
+    {
+      id: "setSoundVolumeCustom",
+      display: "custom...",
+      input: true,
+      exec: ({ input }): void => {
+        if (input === undefined || input === "") return;
+        UpdateConfig.setSoundVolume(parseFloat(input));
+        void SoundController.playClick();
       },
     },
   ],
 };
 
-const commands: MonkeyTypes.Command[] = [
+const commands: Command[] = [
   {
     id: "changeSoundVolume",
     display: "Sound volume...",

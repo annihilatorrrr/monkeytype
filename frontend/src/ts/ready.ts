@@ -1,138 +1,59 @@
-import * as ManualRestart from "./test/manual-restart-tracker";
-import Config, * as UpdateConfig from "./config";
 import * as Misc from "./utils/misc";
 import * as MonkeyPower from "./elements/monkey-power";
-import * as NewVersionNotification from "./elements/version-check";
-import * as Notifications from "./elements/notifications";
-import * as Focus from "./test/focus";
-import * as CookiePopup from "./popups/cookie-popup";
-import * as PSA from "./elements/psa";
+import * as MerchBanner from "./elements/merch-banner";
+import * as CookiesModal from "./modals/cookies";
 import * as ConnectionState from "./states/connection";
-import { Workbox } from "workbox-window";
-//@ts-ignore
+import * as AccountButton from "./elements/account-button";
+//@ts-expect-error
 import Konami from "konami";
+import * as ServerConfiguration from "./ape/server-configuration";
+import { getActiveFunboxes } from "./test/funbox/list";
+import { loadPromise } from "./config";
 
-ManualRestart.set();
-UpdateConfig.loadFromLocalStorage();
+$(async (): Promise<void> => {
+  await loadPromise;
+  Misc.loadCSS("/css/slimselect.min.css", true);
+  Misc.loadCSS("/css/balloon.min.css", true);
 
-if (Misc.isLocalhost()) {
-  $("head title").text("localhost");
-  $("#bottom .version .text").text("localhost");
-  $("#bottom #versionGroup").removeClass("hidden");
-  $("body").prepend(
-    `<a class='button configureAPI' href='http://localhost:5005/configure/' target='_blank' aria-label="Configure API" data-balloon-pos="right"><i class="fas fa-fw fa-server"></i></a>`
-  );
-} else {
-  Misc.getLatestReleaseFromGitHub().then((v) => {
-    $("#bottom .version .text").text(v);
-    $("#bottom #versionGroup").removeClass("hidden");
-    NewVersionNotification.show(v);
-  });
-}
+  CookiesModal.check();
 
-Focus.set(true, true);
-$(document).ready(() => {
-  Misc.loadCSS("/./css/select2.min.css", true);
-  Misc.loadCSS("/./css/balloon.min.css", true);
-  Misc.loadCSS("/./css/fa.min.css", true);
+  //this line goes back to pretty much the beginning of the project and im pretty sure its here
+  //to make sure the initial theme application doesnt animate the background color
+  $("body").css("transition", "background .25s, transform .05s");
+  MerchBanner.showIfNotClosedBefore();
 
-  CookiePopup.check();
-  $("body").css("transition", "all .25s, transform .05s");
-  if (Config.quickRestart === "tab" || Config.quickRestart === "esc") {
-    $("#restartTestButton").addClass("hidden");
-  }
-  if (!window.localStorage.getItem("merchbannerclosed")) {
-    Notifications.addBanner(
-      `Check out our merchandise, available at <a target="_blank" rel="noopener" href="https://monkeytype.store/">monkeytype.store</a>`,
-      1,
-      "./images/merch2.png",
-      false,
-      () => {
-        window.localStorage.setItem("merchbannerclosed", "true");
-      },
-      true
-    );
+  for (const fb of getActiveFunboxes()) {
+    fb.functions?.applyGlobalCSS?.();
   }
 
-  // if (!window.localStorage.getItem("merchbannerclosed2")) {
-  //   Notifications.addBanner(
-  //     `Three new merch designs, available at <a target="_blank" href="https://www.monkeytype.store/unisex-men-s-t-shirts/">monkeytype.store</a>`,
-  //     1,
-  //     "images/cutoutbanner.png",
-  //     false,
-  //     () => {
-  //       window.localStorage.setItem("merchbannerclosed2", "true");
-  //     },
-  //     true
-  //   );
-  // }
-
-  $("#centerContent")
+  $("#app")
     .css("opacity", "0")
     .removeClass("hidden")
     .stop(true, true)
-    .animate({ opacity: 1 }, 250);
-  if (ConnectionState.get()) PSA.show();
+    .animate({ opacity: 1 }, Misc.applyReducedMotion(250));
+  if (ConnectionState.get()) {
+    void ServerConfiguration.sync().then(() => {
+      if (!ServerConfiguration.get()?.users.signUp) {
+        AccountButton.hide();
+        $(".register").addClass("hidden");
+        $(".login").addClass("hidden");
+        $(".disabledNotification").removeClass("hidden");
+      }
+    });
+  }
   MonkeyPower.init();
 
+  // untyped, need to ignore
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-call
   new Konami("https://keymash.io/");
-});
 
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    // disabling service workers on localhost - they dont really work well with local development
-    // and cause issues with hot reloading
-    if (Misc.isLocalhost()) {
-      navigator.serviceWorker.getRegistrations().then(function (registrations) {
+  if (Misc.isDevEnvironment()) {
+    void navigator.serviceWorker
+      .getRegistrations()
+      .then(function (registrations) {
         for (const registration of registrations) {
-          // if (registration.scope !== "https://monkeytype.com/")
-          registration.unregister();
+          void registration.unregister();
         }
       });
-    } else {
-      const wb = new Workbox("/service-worker.js");
-
-      let updateBannerId: number;
-
-      // Add an event listener to detect when the registered
-      // service worker has installed but is waiting to activate.
-      wb.addEventListener("waiting", (event) => {
-        // set up a listener that will show a banner as soon as
-        // the previously waiting service worker has taken control.
-        wb.addEventListener("controlling", (event2) => {
-          if (
-            (event.isUpdate || event2.isUpdate) &&
-            updateBannerId === undefined
-          ) {
-            updateBannerId = Notifications.addBanner(
-              "Update ready - please refresh",
-              1,
-              "gift",
-              true
-            );
-          }
-        });
-
-        wb.messageSkipWaiting();
-      });
-
-      wb.register()
-        .then((registration) => {
-          // if (registration?.waiting) {
-          //   //@ts-ignore
-          //   registration?.onupdatefound = (): void => {
-          //     Notifications.add("Downloading update...", 1, 0, "Update");
-          //   };
-          // }
-          console.log("Service worker registration succeeded:", registration);
-
-          setInterval(() => {
-            wb.update(); //check for updates every 15 minutes
-          }, 900000);
-        })
-        .catch((e) => {
-          console.log("Service worker registration failed:", e);
-        });
-    }
-  });
-}
+  }
+});

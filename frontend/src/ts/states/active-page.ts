@@ -1,9 +1,11 @@
-let activePage = "loading";
+import { PageName } from "../pages/page";
 
-export function get(): string {
+let activePage: PageName = "loading";
+
+export function get(): PageName {
   return activePage;
 }
 
-export function set(active: string): void {
+export function set(active: PageName): void {
   activePage = active;
 }

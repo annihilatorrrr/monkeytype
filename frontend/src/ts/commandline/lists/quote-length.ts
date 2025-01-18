@@ -1,8 +1,9 @@
 import * as UpdateConfig from "../../config";
 import * as TestLogic from "../../test/test-logic";
-import { Auth } from "../../firebase";
+import { isAuthenticated } from "../../firebase";
+import { Command } from "../types";
 
-const commands: MonkeyTypes.Command[] = [
+const commands: Command[] = [
   {
     id: "changeQuoteLength",
     display: "Quote length...",
@@ -72,7 +73,7 @@ const commands: MonkeyTypes.Command[] = [
           configValue: -3,
           configValueMode: "include",
           available: (): boolean => {
-            return !!Auth?.currentUser;
+            return isAuthenticated();
           },
           exec: (): void => {
             UpdateConfig.setMode("quote");

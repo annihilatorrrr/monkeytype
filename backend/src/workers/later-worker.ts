@@ -1,23 +1,25 @@
 import _ from "lodash";
 import IORedis from "ioredis";
-import { Worker, Job } from "bullmq";
+import { Worker, Job, type ConnectionOptions } from "bullmq";
 import Logger from "../utils/logger";
 import { addToInboxBulk } from "../dal/user";
 import GeorgeQueue from "../queues/george-queue";
 import { buildMonkeyMail } from "../utils/monkey-mail";
 import { DailyLeaderboard } from "../utils/daily-leaderboards";
 import { getCachedConfiguration } from "../init/configuration";
-import { getOrdinalNumberString, mapRange } from "../utils/misc";
-import LaterQueue, { LaterTask } from "../queues/later-queue";
+import { formatSeconds, getOrdinalNumberString } from "../utils/misc";
+import LaterQueue, {
+  type LaterTask,
+  type LaterTaskContexts,
+  type LaterTaskType,
+} from "../queues/later-queue";
 import { recordTimeToCompleteJob } from "../utils/prometheus";
-
-interface DailyLeaderboardMailContext {
-  yesterdayTimestamp: number;
-  modeRule: MonkeyTypes.ValidModeRule;
-}
+import { WeeklyXpLeaderboard } from "../services/weekly-xp-leaderboard";
+import { MonkeyMail } from "@monkeytype/contracts/schemas/users";
+import { mapRange } from "@monkeytype/util/numbers";
 
 async function handleDailyLeaderboardResults(
-  ctx: DailyLeaderboardMailContext
+  ctx: LaterTaskContexts["daily-leaderboard-results"]
 ): Promise<void> {
   const { yesterdayTimestamp, modeRule } = ctx;
   const { language, mode, mode2 } = modeRule;
@@ -31,7 +33,8 @@ async function handleDailyLeaderboardResults(
   const allResults = await dailyLeaderboard.getResults(
     0,
     -1,
-    dailyLeaderboardsConfig
+    dailyLeaderboardsConfig,
+    false
   );
 
   if (allResults.length === 0) {
@@ -43,7 +46,7 @@ async function handleDailyLeaderboardResults(
   if (inboxConfig.enabled && xpRewardBrackets.length > 0) {
     const mailEntries: {
       uid: string;
-      mail: MonkeyTypes.MonkeyMail[];
+      mail: MonkeyMail[];
     }[] = [];
 
     allResults.forEach((entry) => {
@@ -100,14 +103,97 @@ async function handleDailyLeaderboardResults(
   );
 }
 
-async function jobHandler(job: Job): Promise<void> {
-  const { taskName, ctx }: LaterTask = job.data;
+async function handleWeeklyXpLeaderboardResults(
+  ctx: LaterTaskContexts["weekly-xp-leaderboard-results"]
+): Promise<void> {
+  const {
+    leaderboards: { weeklyXp: weeklyXpConfig },
+    users: { inbox: inboxConfig },
+  } = await getCachedConfiguration(false);
+
+  const { enabled, xpRewardBrackets } = weeklyXpConfig;
+  if (!enabled || xpRewardBrackets.length < 0) {
+    return;
+  }
+
+  const { lastWeekTimestamp } = ctx;
+  const weeklyXpLeaderboard = new WeeklyXpLeaderboard(lastWeekTimestamp);
+
+  const maxRankToGet = Math.max(
+    ...xpRewardBrackets.map((bracket) => bracket.maxRank)
+  );
+
+  const allResults = await weeklyXpLeaderboard.getResults(
+    0,
+    maxRankToGet,
+    weeklyXpConfig
+  );
+
+  if (allResults.length === 0) {
+    return;
+  }
+
+  const mailEntries: {
+    uid: string;
+    mail: MonkeyMail[];
+  }[] = [];
+
+  allResults.forEach((entry) => {
+    const { uid, name, rank = maxRankToGet, totalXp, timeTypedSeconds } = entry;
+
+    const xp = Math.round(totalXp);
+    const placementString = getOrdinalNumberString(rank);
+
+    const xpReward = _(xpRewardBrackets)
+      .filter((bracket) => rank >= bracket.minRank && rank <= bracket.maxRank)
+      .map((bracket) =>
+        mapRange(
+          rank,
+          bracket.minRank,
+          bracket.maxRank,
+          bracket.maxReward,
+          bracket.minReward
+        )
+      )
+      .max();
+
+    if (!xpReward) return;
+
+    const rewardMail = buildMonkeyMail({
+      subject: "Weekly XP Leaderboard placement",
+      body: `Congratulations ${name} on placing ${placementString} with ${xp} xp! Last week, you typed for a total of ${formatSeconds(
+        timeTypedSeconds
+      )}! Keep up the good work :)`,
+      rewards: [
+        {
+          type: "xp",
+          item: Math.round(xpReward),
+        },
+      ],
+    });
+
+    mailEntries.push({
+      uid: uid,
+      mail: [rewardMail],
+    });
+  });
+
+  await addToInboxBulk(mailEntries, inboxConfig);
+}
+
+async function jobHandler(job: Job<LaterTask<LaterTaskType>>): Promise<void> {
+  const { taskName, ctx } = job.data;
+
   Logger.info(`Starting job: ${taskName}`);
 
   const start = performance.now();
 
   if (taskName === "daily-leaderboard-results") {
-    await handleDailyLeaderboardResults(ctx);
+    const taskCtx = ctx as LaterTaskContexts["daily-leaderboard-results"];
+    await handleDailyLeaderboardResults(taskCtx);
+  } else if (taskName === "weekly-xp-leaderboard-results") {
+    const taskCtx = ctx as LaterTaskContexts["weekly-xp-leaderboard-results"];
+    await handleWeeklyXpLeaderboardResults(taskCtx);
   }
 
   const elapsed = performance.now() - start;
@@ -118,5 +204,5 @@ async function jobHandler(job: Job): Promise<void> {
 export default (redisConnection?: IORedis.Redis): Worker =>
   new Worker(LaterQueue.queueName, jobHandler, {
     autorun: false,
-    connection: redisConnection,
+    connection: redisConnection as ConnectionOptions,
   });

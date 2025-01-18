@@ -1,13 +1,15 @@
 import * as UpdateConfig from "../../config";
+import { Command, CommandsSubgroup } from "../types";
 
-const subgroup: MonkeyTypes.CommandsSubgroup = {
-  title: "Timer/progress color...",
+const subgroup: CommandsSubgroup = {
+  title: "Live stats color...",
   configKey: "timerColor",
   list: [
     {
       id: "setTimerColorBlack",
       display: "black",
       configValue: "black",
+      alias: "timer",
       exec: (): void => {
         UpdateConfig.setTimerColor("black");
       },
@@ -16,6 +18,7 @@ const subgroup: MonkeyTypes.CommandsSubgroup = {
       id: "setTimerColorSub",
       display: "sub",
       configValue: "sub",
+      alias: "timer",
       exec: (): void => {
         UpdateConfig.setTimerColor("sub");
       },
@@ -24,6 +27,7 @@ const subgroup: MonkeyTypes.CommandsSubgroup = {
       id: "setTimerColorText",
       display: "text",
       configValue: "text",
+      alias: "timer",
       exec: (): void => {
         UpdateConfig.setTimerColor("text");
       },
@@ -32,6 +36,7 @@ const subgroup: MonkeyTypes.CommandsSubgroup = {
       id: "setTimerColorMain",
       display: "main",
       configValue: "main",
+      alias: "timer",
       exec: (): void => {
         UpdateConfig.setTimerColor("main");
       },
@@ -39,11 +44,12 @@ const subgroup: MonkeyTypes.CommandsSubgroup = {
   ],
 };
 
-const commands: MonkeyTypes.Command[] = [
+const commands: Command[] = [
   {
     id: "changeTimerColor",
-    display: "Timer/progress color...",
-    icon: "fa-clock",
+    display: "Live stats color...",
+    icon: "fa-chart-pie",
+    alias: "timer speed wpm burst acc",
     subgroup,
   },
 ];

@@ -1,14 +1,16 @@
 import Config, * as UpdateConfig from "../../config";
-import { capitalizeFirstLetterOfEachWord } from "../../utils/misc";
+import { capitalizeFirstLetterOfEachWord } from "../../utils/strings";
 import * as ThemeController from "../../controllers/theme-controller";
+import { Command, CommandsSubgroup } from "../types";
+import { Theme } from "../../utils/json-data";
 
-export const subgroup: MonkeyTypes.CommandsSubgroup = {
+const subgroup: CommandsSubgroup = {
   title: "Theme...",
   configKey: "theme",
   list: [],
 };
 
-const commands: MonkeyTypes.Command[] = [
+const commands: Command[] = [
   {
     id: "changeTheme",
     display: "Theme...",
@@ -17,11 +19,11 @@ const commands: MonkeyTypes.Command[] = [
   },
 ];
 
-function update(themes: MonkeyTypes.Theme[]): void {
+function update(themes: Theme[]): void {
   subgroup.list = [];
-  const favs: MonkeyTypes.Command[] = [];
+  const favs: Command[] = [];
   themes.forEach((theme) => {
-    if ((Config.favThemes as string[]).includes(theme.name)) {
+    if (Config.favThemes.includes(theme.name)) {
       favs.push({
         id: "changeTheme" + capitalizeFirstLetterOfEachWord(theme.name),
         display: theme.name.replace(/_/g, " "),
@@ -35,7 +37,7 @@ function update(themes: MonkeyTypes.Theme[]): void {
         },
         hover: (): void => {
           // previewTheme(theme.name);
-          ThemeController.preview(theme.name, false);
+          ThemeController.preview(theme.name);
         },
         exec: (): void => {
           UpdateConfig.setTheme(theme.name);
@@ -55,7 +57,7 @@ function update(themes: MonkeyTypes.Theme[]): void {
         },
         hover: (): void => {
           // previewTheme(theme.name);
-          ThemeController.preview(theme.name, false);
+          ThemeController.preview(theme.name);
         },
         exec: (): void => {
           UpdateConfig.setTheme(theme.name);

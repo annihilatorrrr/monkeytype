@@ -1,6 +1,5 @@
 {
   "name": "finnish_10k",
-  "leftToRight": true,
   "bcp47": "fi-FI",
   "words": [
     "aallotar",
@@ -4924,7 +4923,6 @@
     "neiti",
     "neitoperhonen",
     "nekrologi",
-    "nekru",
     "nelikanavainen",
     "nelikerroksinen",
     "nelikko",

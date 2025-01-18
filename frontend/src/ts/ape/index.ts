@@ -1,27 +1,17 @@
-import endpoints from "./endpoints";
-import { buildHttpClient } from "./adapters/axios-adapter";
+import { envConfig } from "../constants/env-config";
+import { buildClient } from "./adapters/ts-rest-adapter";
+import { contract } from "@monkeytype/contracts";
+import { devContract } from "@monkeytype/contracts/dev";
 
-const DEV_SERVER_HOST = "http://localhost:5005";
-const PROD_SERVER_HOST = "https://api.monkeytype.com";
+const BASE_URL = envConfig.backendUrl;
 
-const API_PATH = "";
-const BASE_URL =
-  window.location.hostname === "localhost" ? DEV_SERVER_HOST : PROD_SERVER_HOST;
-const API_URL = `${BASE_URL}${API_PATH}`;
-
-const httpClient = buildHttpClient(API_URL, 10000);
+const tsRestClient = buildClient(contract, BASE_URL, 10_000);
+const devClient = buildClient(devContract, BASE_URL, 240_000);
 
 // API Endpoints
 const Ape = {
-  users: new endpoints.Users(httpClient),
-  configs: new endpoints.Configs(httpClient),
-  results: new endpoints.Results(httpClient),
-  psas: new endpoints.Psas(httpClient),
-  quotes: new endpoints.Quotes(httpClient),
-  leaderboards: new endpoints.Leaderboards(httpClient),
-  presets: new endpoints.Presets(httpClient),
-  publicStats: new endpoints.Public(httpClient),
-  apeKeys: new endpoints.ApeKeys(httpClient),
+  ...tsRestClient,
+  dev: devClient,
 };
 
 export default Ape;

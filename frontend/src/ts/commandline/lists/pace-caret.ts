@@ -1,7 +1,9 @@
-import * as UpdateConfig from "../../config";
+import Config, * as UpdateConfig from "../../config";
 import * as TestLogic from "../../test/test-logic";
+import { get as getTypingSpeedUnit } from "../../utils/typing-speed-units";
+import { Command, CommandsSubgroup } from "../types";
 
-const subgroup: MonkeyTypes.CommandsSubgroup = {
+const subgroup: CommandsSubgroup = {
   title: "Pace caret mode...",
   configKey: "paceCaret",
   list: [
@@ -20,6 +22,15 @@ const subgroup: MonkeyTypes.CommandsSubgroup = {
       configValue: "pb",
       exec: (): void => {
         UpdateConfig.setPaceCaret("pb");
+        TestLogic.restart();
+      },
+    },
+    {
+      id: "setPaceCaretTagPb",
+      display: "tag pb",
+      configValue: "tagPb",
+      exec: (): void => {
+        UpdateConfig.setPaceCaret("tagPb");
         TestLogic.restart();
       },
     },
@@ -55,9 +66,12 @@ const subgroup: MonkeyTypes.CommandsSubgroup = {
       display: "custom...",
       configValue: "custom",
       input: true,
-      exec: (input): void => {
-        if (!input) return;
-        UpdateConfig.setPaceCaretCustomSpeed(parseInt(input));
+      exec: ({ input }): void => {
+        if (input === undefined || input === "") return;
+        const newVal = getTypingSpeedUnit(Config.typingSpeedUnit).toWpm(
+          parseInt(input)
+        );
+        UpdateConfig.setPaceCaretCustomSpeed(newVal);
         UpdateConfig.setPaceCaret("custom");
         TestLogic.restart();
       },
@@ -65,7 +79,7 @@ const subgroup: MonkeyTypes.CommandsSubgroup = {
   ],
 };
 
-const commands: MonkeyTypes.Command[] = [
+const commands: Command[] = [
   {
     id: "changePaceCaret",
     display: "Pace caret mode...",

@@ -1,66 +1,166 @@
-export let text = [
-  "The",
-  "quick",
-  "brown",
-  "fox",
-  "jumps",
-  "over",
-  "the",
-  "lazy",
-  "dog",
-];
-export let isWordRandom = false;
-export let isTimeRandom = false;
-export let word = -1;
-export let time = -1;
-export let delimiter = " ";
-export let popupTextareaState = "The quick brown fox jumps over the lazy dog";
+import {
+  CustomTextLimitMode,
+  CustomTextLimitModeSchema,
+  CustomTextMode,
+  CustomTextModeSchema,
+} from "@monkeytype/contracts/schemas/util";
+import { LocalStorageWithSchema } from "../utils/local-storage-with-schema";
+import { z } from "zod";
+import { CustomTextDataWithTextLen } from "@monkeytype/contracts/schemas/results";
 
-export function setPopupTextareaState(value: string): void {
-  popupTextareaState = value;
+const CustomTextObjectSchema = z.record(z.string(), z.string());
+type CustomTextObject = z.infer<typeof CustomTextObjectSchema>;
+
+const CustomTextLongObjectSchema = z.record(
+  z.string(),
+  z.object({ text: z.string(), progress: z.number() })
+);
+type CustomTextLongObject = z.infer<typeof CustomTextLongObjectSchema>;
+
+const customTextLS = new LocalStorageWithSchema({
+  key: "customText",
+  schema: CustomTextObjectSchema,
+  fallback: {},
+});
+//todo maybe add migrations here?
+const customTextLongLS = new LocalStorageWithSchema({
+  key: "customTextLong",
+  schema: CustomTextLongObjectSchema,
+  fallback: {},
+});
+
+const CustomTextSettingsSchema = z.object({
+  text: z.array(z.string()),
+  mode: CustomTextModeSchema,
+  limit: z.object({ value: z.number(), mode: CustomTextLimitModeSchema }),
+  pipeDelimiter: z.boolean(),
+});
+
+type CustomTextSettings = z.infer<typeof CustomTextSettingsSchema>;
+
+type CustomTextLimit = z.infer<typeof CustomTextSettingsSchema>["limit"];
+
+const defaultCustomTextSettings: CustomTextSettings = {
+  text: ["The", "quick", "brown", "fox", "jumps", "over", "the", "lazy", "dog"],
+  mode: "repeat",
+  limit: { value: 9, mode: "word" },
+  pipeDelimiter: false,
+};
+
+const customTextSettings = new LocalStorageWithSchema({
+  key: "customTextSettings",
+  schema: CustomTextSettingsSchema,
+  fallback: defaultCustomTextSettings,
+  migrate: (oldData, _zodIssues, fallback) => {
+    if (typeof oldData !== "object" || oldData === null) {
+      return fallback;
+    }
+    const migratedData = fallback;
+    if (
+      "text" in oldData &&
+      z.array(z.string()).safeParse(migratedData.text).success
+    ) {
+      migratedData.text = oldData.text as string[];
+    }
+    return migratedData;
+  },
+});
+
+export function getText(): string[] {
+  return customTextSettings.get().text;
 }
 
 export function setText(txt: string[]): void {
-  text = txt;
+  const currentSettings = customTextSettings.get();
+  customTextSettings.set({
+    ...currentSettings,
+    text: txt,
+    limit: { value: txt.length, mode: currentSettings.limit.mode },
+  });
 }
 
-export function getText(): string {
-  return text.join(" ");
+export function getMode(): CustomTextMode {
+  const currentSettings = customTextSettings.get();
+  return currentSettings.mode;
 }
 
-export function getTextArray(): string[] {
-  return text;
+export function setMode(val: CustomTextMode): void {
+  const currentSettings = customTextSettings.get();
+  customTextSettings.set({
+    ...currentSettings,
+    mode: val,
+    limit: {
+      value: currentSettings.text.length,
+      mode: currentSettings.limit.mode,
+    },
+  });
 }
 
-export function setIsWordRandom(val: boolean): void {
-  isWordRandom = val;
+export function getLimit(): CustomTextLimit {
+  return customTextSettings.get().limit as CustomTextLimit;
 }
 
-export function setIsTimeRandom(val: boolean): void {
-  isTimeRandom = val;
+export function getLimitValue(): number {
+  return customTextSettings.get().limit.value;
 }
 
-export function setTime(val: number): void {
-  time = val;
+export function getLimitMode(): CustomTextLimitMode {
+  return customTextSettings.get().limit.mode;
 }
 
-export function setWord(val: number): void {
-  word = val;
+export function setLimitValue(val: number): void {
+  const currentSettings = customTextSettings.get();
+  customTextSettings.set({
+    ...currentSettings,
+    limit: { value: val, mode: currentSettings.limit.mode },
+  });
 }
 
-export function setDelimiter(val: string): void {
-  delimiter = val;
+export function setLimitMode(val: CustomTextLimitMode): void {
+  const currentSettings = customTextSettings.get();
+  customTextSettings.set({
+    ...currentSettings,
+    limit: { value: currentSettings.limit.value, mode: val },
+  });
 }
 
-type CustomTextObject = Record<string, string>;
+export function getPipeDelimiter(): boolean {
+  return customTextSettings.get().pipeDelimiter;
+}
 
-type CustomTextLongObject = Record<string, { text: string; progress: number }>;
+export function setPipeDelimiter(val: boolean): void {
+  const currentSettings = customTextSettings.get();
+  customTextSettings.set({
+    ...currentSettings,
+    pipeDelimiter: val,
+  });
+}
+
+export type CustomTextData = Omit<CustomTextDataWithTextLen, "textLen"> & {
+  text: string[];
+};
+
+export function getData(): CustomTextData {
+  return {
+    text: getText(),
+    mode: getMode(),
+    limit: getLimit(),
+    pipeDelimiter: getPipeDelimiter(),
+  };
+}
 
 export function getCustomText(name: string, long = false): string[] {
   if (long) {
-    return getCustomTextLongObject()[name]["text"].split(/ +/);
+    const customTextLong = getLocalStorageLong();
+    const customText = customTextLong[name];
+    if (customText === undefined)
+      throw new Error(`Custom text ${name} not found`);
+    return customText.text.split(/ +/);
   } else {
-    return getCustomTextObject()[name].split(/ +/);
+    const customText = getLocalStorage()[name];
+    if (customText === undefined)
+      throw new Error(`Custom text ${name} not found`);
+    return customText.split(/ +/);
   }
 }
 
@@ -70,22 +170,27 @@ export function setCustomText(
   long = false
 ): void {
   if (long) {
-    const customText = getCustomTextLongObject();
+    const customText = getLocalStorageLong();
 
     customText[name] = {
       text: "",
       progress: 0,
     };
 
-    if (typeof text === "string") {
-      customText[name]["text"] = text;
-    } else {
-      customText[name]["text"] = text.join(" ");
+    const textByName = customText[name];
+    if (textByName === undefined) {
+      throw new Error("Custom text not found");
     }
 
-    window.localStorage.setItem("customTextLong", JSON.stringify(customText));
+    if (typeof text === "string") {
+      textByName.text = text;
+    } else {
+      textByName.text = text.join(" ");
+    }
+
+    setLocalStorageLong(customText);
   } else {
-    const customText = getCustomTextObject();
+    const customText = getLocalStorage();
 
     if (typeof text === "string") {
       customText[name] = text;
@@ -93,54 +198,62 @@ export function setCustomText(
       customText[name] = text.join(" ");
     }
 
-    window.localStorage.setItem("customText", JSON.stringify(customText));
+    setLocalStorage(customText);
   }
 }
 
-export function deleteCustomText(name: string, long = false): void {
-  const customText = long ? getCustomTextLongObject() : getCustomTextObject();
+export function deleteCustomText(name: string, long: boolean): void {
+  const customText = long ? getLocalStorageLong() : getLocalStorage();
 
-  if (customText[name]) delete customText[name];
+  // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+  delete customText[name];
 
   if (long) {
-    window.localStorage.setItem("customTextLong", JSON.stringify(customText));
+    setLocalStorageLong(customText as CustomTextLongObject);
   } else {
-    window.localStorage.setItem("customText", JSON.stringify(customText));
+    setLocalStorage(customText as CustomTextObject);
   }
 }
 
 export function getCustomTextLongProgress(name: string): number {
-  const customText = getCustomTextLongObject();
+  const customText = getLocalStorageLong()[name];
+  if (customText === undefined) throw new Error("Custom text not found");
 
-  return customText[name]["progress"] ?? 0;
+  return customText.progress ?? 0;
 }
 
 export function setCustomTextLongProgress(
   name: string,
   progress: number
 ): void {
-  const customTextProgress = getCustomTextLongObject();
+  const customTexts = getLocalStorageLong();
+  const customText = customTexts[name];
+  if (customText === undefined) throw new Error("Custom text not found");
 
-  customTextProgress[name]["progress"] = progress;
-
-  window.localStorage.setItem(
-    "customTextLong",
-    JSON.stringify(customTextProgress)
-  );
+  customText.progress = progress;
+  setLocalStorageLong(customTexts);
 }
 
-function getCustomTextObject(): CustomTextObject {
-  return JSON.parse(window.localStorage.getItem("customText") ?? "{}");
+function getLocalStorage(): CustomTextObject {
+  return customTextLS.get();
 }
 
-function getCustomTextLongObject(): CustomTextLongObject {
-  return JSON.parse(window.localStorage.getItem("customTextLong") ?? "{}");
+function getLocalStorageLong(): CustomTextLongObject {
+  return customTextLongLS.get();
+}
+
+function setLocalStorage(data: CustomTextObject): void {
+  customTextLS.set(data);
+}
+
+function setLocalStorageLong(data: CustomTextLongObject): void {
+  customTextLongLS.set(data);
 }
 
 export function getCustomTextNames(long = false): string[] {
   if (long) {
-    return Object.keys(getCustomTextLongObject());
+    return Object.keys(getLocalStorageLong());
   } else {
-    return Object.keys(getCustomTextObject());
+    return Object.keys(getLocalStorage());
   }
 }

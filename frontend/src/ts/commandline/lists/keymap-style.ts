@@ -1,6 +1,7 @@
 import * as UpdateConfig from "../../config";
+import { Command, CommandsSubgroup } from "../types";
 
-const subgroup: MonkeyTypes.CommandsSubgroup = {
+const subgroup: CommandsSubgroup = {
   title: "Keymap style...",
   configKey: "keymapStyle",
   list: [
@@ -44,10 +45,26 @@ const subgroup: MonkeyTypes.CommandsSubgroup = {
         UpdateConfig.setKeymapStyle("split_matrix");
       },
     },
+    {
+      id: "setKeymapStyleSteno",
+      display: "steno",
+      configValue: "steno",
+      exec: (): void => {
+        UpdateConfig.setKeymapStyle("steno");
+      },
+    },
+    {
+      id: "setKeymapStyleStenoMatrix",
+      display: "steno matrix",
+      configValue: "steno_matrix",
+      exec: (): void => {
+        UpdateConfig.setKeymapStyle("steno_matrix");
+      },
+    },
   ],
 };
 
-const commands: MonkeyTypes.Command[] = [
+const commands: Command[] = [
   {
     id: "changeKeymapStyle",
     display: "Keymap style...",

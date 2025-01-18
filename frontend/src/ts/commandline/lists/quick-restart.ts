@@ -1,9 +1,18 @@
 import * as UpdateConfig from "../../config";
+import { Command, CommandsSubgroup } from "../types";
 
-const subgroup: MonkeyTypes.CommandsSubgroup = {
+const subgroup: CommandsSubgroup = {
   title: "Quick restart...",
   configKey: "quickRestart",
   list: [
+    {
+      id: "changeQuickRestartEnter",
+      display: "enter",
+      configValue: "enter",
+      exec: (): void => {
+        UpdateConfig.setQuickRestartMode("enter");
+      },
+    },
     {
       id: "changeQuickRestartTab",
       display: "tab",
@@ -31,7 +40,7 @@ const subgroup: MonkeyTypes.CommandsSubgroup = {
   ],
 };
 
-const commands: MonkeyTypes.Command[] = [
+const commands: Command[] = [
   {
     id: "changeQuickRestart",
     display: "Quick restart...",

@@ -7,40 +7,42 @@ import {
 import { app as firebaseApp } from "../firebase";
 import { createErrorMessage } from "../utils/misc";
 
-export let Analytics: AnalyticsType;
+let analytics: AnalyticsType;
+
+type AcceptedCookies = {
+  security: boolean;
+  analytics: boolean;
+};
 
 export async function log(
   eventName: string,
-  params?: { [key: string]: string }
+  params?: Record<string, string>
 ): Promise<void> {
   try {
-    logEvent(Analytics, eventName, params);
+    logEvent(analytics, eventName, params);
   } catch (e) {
     console.log("Analytics unavailable");
   }
 }
 
 const lsString = localStorage.getItem("acceptedCookies");
-let acceptedCookies: {
-  security: boolean;
-  analytics: boolean;
-} | null;
-if (lsString) {
-  acceptedCookies = JSON.parse(lsString);
+let acceptedCookies;
+if (lsString !== undefined && lsString !== null && lsString !== "") {
+  acceptedCookies = JSON.parse(lsString) as AcceptedCookies;
 } else {
   acceptedCookies = null;
 }
 
 if (acceptedCookies !== null) {
-  if (acceptedCookies["analytics"] === true) {
+  if (acceptedCookies.analytics) {
     activateAnalytics();
   }
 }
 
 export function activateAnalytics(): void {
   try {
-    Analytics = getAnalytics(firebaseApp);
-    setAnalyticsCollectionEnabled(Analytics, true);
+    analytics = getAnalytics(firebaseApp);
+    setAnalyticsCollectionEnabled(analytics, true);
     $("body").append(`
     <script
     async

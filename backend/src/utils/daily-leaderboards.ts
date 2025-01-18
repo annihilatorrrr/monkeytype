@@ -1,23 +1,18 @@
-import _ from "lodash";
-import LRUCache from "lru-cache";
+import _, { omit } from "lodash";
 import * as RedisClient from "../init/redis";
 import LaterQueue from "../queues/later-queue";
-import { getCurrentDayTimestamp, matchesAPattern, kogascore } from "./misc";
-
-interface DailyLeaderboardEntry {
-  uid: string;
-  name: string;
-  wpm: number;
-  raw: number;
-  acc: number;
-  consistency: number;
-  timestamp: number;
-  rank?: number;
-  count?: number;
-  discordAvatar?: string;
-  discordId?: string;
-  badgeId?: number;
-}
+import { matchesAPattern, kogascore } from "./misc";
+import {
+  Configuration,
+  ValidModeRule,
+} from "@monkeytype/contracts/schemas/configuration";
+import {
+  DailyLeaderboardRank,
+  LeaderboardEntry,
+} from "@monkeytype/contracts/schemas/leaderboards";
+import MonkeyError from "./error";
+import { Mode, Mode2 } from "@monkeytype/contracts/schemas/shared";
+import { getCurrentDayTimestamp } from "@monkeytype/util/date-and-time";
 
 const dailyLeaderboardNamespace = "monkeytype:dailyleaderboard";
 const scoresNamespace = `${dailyLeaderboardNamespace}:scores`;
@@ -28,9 +23,9 @@ export class DailyLeaderboard {
   private leaderboardScoresKeyName: string;
   private leaderboardModeKey: string;
   private customTime: number;
-  private modeRule: MonkeyTypes.ValidModeRule;
+  private modeRule: ValidModeRule;
 
-  constructor(modeRule: MonkeyTypes.ValidModeRule, customTime = -1) {
+  constructor(modeRule: ValidModeRule, customTime = -1) {
     const { language, mode, mode2 } = modeRule;
 
     this.leaderboardModeKey = `${language}:${mode}:${mode2}`;
@@ -58,8 +53,8 @@ export class DailyLeaderboard {
   }
 
   public async addResult(
-    entry: DailyLeaderboardEntry,
-    dailyLeaderboardsConfig: MonkeyTypes.Configuration["dailyLeaderboards"]
+    entry: Omit<LeaderboardEntry, "rank">,
+    dailyLeaderboardsConfig: Configuration["dailyLeaderboards"]
   ): Promise<number> {
     const connection = RedisClient.getConnection();
     if (!connection || !dailyLeaderboardsConfig.enabled) {
@@ -80,8 +75,9 @@ export class DailyLeaderboard {
 
     const resultScore = kogascore(entry.wpm, entry.acc, entry.timestamp);
 
-    // @ts-ignore
-    const rank = await connection.addResult(
+    // @ts-expect-error we are doing some weird file to function mapping, thats why its any
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+    const rank = (await connection.addResult(
       2,
       leaderboardScoresKey,
       leaderboardResultsKey,
@@ -90,7 +86,7 @@ export class DailyLeaderboard {
       entry.uid,
       resultScore,
       JSON.stringify(entry)
-    );
+    )) as number;
 
     if (
       isValidModeRule(
@@ -101,9 +97,7 @@ export class DailyLeaderboard {
       await LaterQueue.scheduleForTomorrow(
         "daily-leaderboard-results",
         this.leaderboardModeKey,
-        {
-          modeRule: this.modeRule,
-        }
+        this.modeRule
       );
     }
 
@@ -117,8 +111,9 @@ export class DailyLeaderboard {
   public async getResults(
     minRank: number,
     maxRank: number,
-    dailyLeaderboardsConfig: MonkeyTypes.Configuration["dailyLeaderboards"]
-  ): Promise<DailyLeaderboardEntry[]> {
+    dailyLeaderboardsConfig: Configuration["dailyLeaderboards"],
+    premiumFeaturesEnabled: boolean
+  ): Promise<LeaderboardEntry[]> {
     const connection = RedisClient.getConnection();
     if (!connection || !dailyLeaderboardsConfig.enabled) {
       return [];
@@ -127,85 +122,108 @@ export class DailyLeaderboard {
     const { leaderboardScoresKey, leaderboardResultsKey } =
       this.getTodaysLeaderboardKeys();
 
-    // @ts-ignore
-    const [results]: string[][] = await connection.getResults(
+    // @ts-expect-error we are doing some weird file to function mapping, thats why its any
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+    const [results] = (await connection.getResults(
       2,
       leaderboardScoresKey,
       leaderboardResultsKey,
       minRank,
       maxRank,
       "false"
+    )) as string[][];
+
+    if (results === undefined) {
+      throw new Error(
+        "Redis returned undefined when getting daily leaderboard results"
+      );
+    }
+
+    const resultsWithRanks: LeaderboardEntry[] = results.map(
+      (resultJSON, index) => {
+        // TODO: parse with zod?
+        const parsed = JSON.parse(resultJSON) as LeaderboardEntry;
+
+        return {
+          ...parsed,
+          rank: minRank + index + 1,
+        };
+      }
     );
 
-    const resultsWithRanks: DailyLeaderboardEntry[] = results.map(
-      (resultJSON, index) => ({
-        ...JSON.parse(resultJSON),
-        rank: minRank + index + 1,
-      })
-    );
+    if (!premiumFeaturesEnabled) {
+      return resultsWithRanks.map((it) => omit(it, "isPremium"));
+    }
 
     return resultsWithRanks;
   }
 
   public async getRank(
     uid: string,
-    dailyLeaderboardsConfig: MonkeyTypes.Configuration["dailyLeaderboards"]
-  ): Promise<DailyLeaderboardEntry | null> {
+    dailyLeaderboardsConfig: Configuration["dailyLeaderboards"]
+  ): Promise<DailyLeaderboardRank> {
     const connection = RedisClient.getConnection();
     if (!connection || !dailyLeaderboardsConfig.enabled) {
-      return null;
+      throw new MonkeyError(500, "Redis connnection is unavailable");
     }
 
     const { leaderboardScoresKey, leaderboardResultsKey } =
       this.getTodaysLeaderboardKeys();
 
-    const [[, rank], [, count], [, result]] = await connection
+    const redisExecResult = (await connection
       .multi()
       .zrevrank(leaderboardScoresKey, uid)
       .zcard(leaderboardScoresKey)
       .hget(leaderboardResultsKey, uid)
-      .exec();
+      .zrange(leaderboardScoresKey, 0, 0, "WITHSCORES")
+      .exec()) as [
+      [null, number | null],
+      [null, number | null],
+      [null, string | null],
+      [null, [string, string] | null]
+    ];
 
+    const [[, rank], [, count], [, result], [, minScore]] = redisExecResult;
+
+    const minWpm =
+      minScore !== null && minScore.length > 0
+        ? parseInt(minScore[1]?.slice(1, 6)) / 100
+        : 0;
     if (rank === null) {
-      return null;
+      return {
+        minWpm,
+        count: count ?? 0,
+      };
     }
 
     return {
-      rank: rank + 1,
+      minWpm,
       count: count ?? 0,
-      ...JSON.parse(result ?? "null"),
+      rank: rank + 1,
+      entry: {
+        ...(JSON.parse(result ?? "null") as LeaderboardEntry),
+      },
     };
   }
 }
 
 export async function purgeUserFromDailyLeaderboards(
   uid: string,
-  configuration: MonkeyTypes.Configuration["dailyLeaderboards"]
+  configuration: Configuration["dailyLeaderboards"]
 ): Promise<void> {
   const connection = RedisClient.getConnection();
   if (!connection || !configuration.enabled) {
     return;
   }
 
-  // @ts-ignore
+  // @ts-expect-error we are doing some weird file to function mapping, thats why its any
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-call
   await connection.purgeResults(0, uid, dailyLeaderboardNamespace);
 }
 
-let DAILY_LEADERBOARDS: LRUCache<string, DailyLeaderboard>;
-
-export function initializeDailyLeaderboardsCache(
-  configuration: MonkeyTypes.Configuration["dailyLeaderboards"]
-): void {
-  const { dailyLeaderboardCacheSize } = configuration;
-
-  DAILY_LEADERBOARDS = new LRUCache({
-    max: dailyLeaderboardCacheSize,
-  });
-}
-
 function isValidModeRule(
-  modeRule: MonkeyTypes.ValidModeRule,
-  modeRules: MonkeyTypes.ValidModeRule[]
+  modeRule: ValidModeRule,
+  modeRules: ValidModeRule[]
 ): boolean {
   const { language, mode, mode2 } = modeRule;
 
@@ -219,26 +237,19 @@ function isValidModeRule(
 
 export function getDailyLeaderboard(
   language: string,
-  mode: string,
-  mode2: string,
-  dailyLeaderboardsConfig: MonkeyTypes.Configuration["dailyLeaderboards"],
+  mode: Mode,
+  mode2: Mode2<Mode>,
+  dailyLeaderboardsConfig: Configuration["dailyLeaderboards"],
   customTimestamp = -1
 ): DailyLeaderboard | null {
   const { validModeRules, enabled } = dailyLeaderboardsConfig;
 
-  const modeRule = { language, mode, mode2 };
+  const modeRule: ValidModeRule = { language, mode, mode2 };
   const isValidMode = isValidModeRule(modeRule, validModeRules);
 
-  if (!enabled || !isValidMode || !DAILY_LEADERBOARDS) {
+  if (!enabled || !isValidMode) {
     return null;
   }
 
-  const key = `${language}:${mode}:${mode2}:${customTimestamp}`;
-
-  if (!DAILY_LEADERBOARDS.has(key)) {
-    const dailyLeaderboard = new DailyLeaderboard(modeRule, customTimestamp);
-    DAILY_LEADERBOARDS.set(key, dailyLeaderboard);
-  }
-
-  return DAILY_LEADERBOARDS.get(key) ?? null;
+  return new DailyLeaderboard(modeRule, customTimestamp);
 }

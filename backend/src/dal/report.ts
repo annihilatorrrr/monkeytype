@@ -1,15 +1,43 @@
 import MonkeyError from "../utils/error";
 import * as db from "../init/db";
+import { ObjectId } from "mongodb";
+
+type ReportTypes = "quote" | "user";
+
+export type DBReport = {
+  _id: ObjectId;
+  id: string;
+  type: ReportTypes;
+  timestamp: number;
+  uid: string;
+  contentId: string;
+  reason: string;
+  comment: string;
+};
 
 const COLLECTION_NAME = "reports";
 
+export async function getReports(reportIds: string[]): Promise<DBReport[]> {
+  const query = { id: { $in: reportIds } };
+  return await db.collection<DBReport>(COLLECTION_NAME).find(query).toArray();
+}
+
+export async function deleteReports(reportIds: string[]): Promise<void> {
+  const query = { id: { $in: reportIds } };
+  await db.collection(COLLECTION_NAME).deleteMany(query);
+}
+
 export async function createReport(
-  report: MonkeyTypes.Report,
+  report: DBReport,
   maxReports: number,
   contentReportLimit: number
 ): Promise<void> {
+  if (report.type === "user" && report.contentId === report.uid) {
+    throw new MonkeyError(400, "You cannot report yourself.");
+  }
+
   const reportsCount = await db
-    .collection<MonkeyTypes.Report>(COLLECTION_NAME)
+    .collection<DBReport>(COLLECTION_NAME)
     .estimatedDocumentCount();
 
   if (reportsCount >= maxReports) {
@@ -20,7 +48,7 @@ export async function createReport(
   }
 
   const sameReports = await db
-    .collection<MonkeyTypes.Report>(COLLECTION_NAME)
+    .collection<DBReport>(COLLECTION_NAME)
     .find({ contentId: report.contentId })
     .toArray();
 
@@ -31,5 +59,13 @@ export async function createReport(
     );
   }
 
-  await db.collection<MonkeyTypes.Report>(COLLECTION_NAME).insertOne(report);
+  const countFromUserMakingReport = sameReports.filter((r) => {
+    return r.uid === report.uid;
+  }).length;
+
+  if (countFromUserMakingReport > 0) {
+    throw new MonkeyError(409, "You have already reported this content.");
+  }
+
+  await db.collection<DBReport>(COLLECTION_NAME).insertOne(report);
 }

@@ -1,39 +1,20 @@
-import joi from "joi";
-import { Router } from "express";
-import {
-  asyncHandler,
-  checkUserPermissions,
-  useInProduction,
-  validateRequest,
-} from "../../middlewares/api-utils";
+import { configurationContract } from "@monkeytype/contracts/configuration";
+import { initServer } from "@ts-rest/express";
 import * as ConfigurationController from "../controllers/configuration";
-import { authenticateRequest } from "../../middlewares/auth";
+import { callController } from "../ts-rest-adapter";
 
-const router = Router();
+const s = initServer();
 
-const checkIfUserIsConfigurationMod = checkUserPermissions({
-  criteria: (user) => {
-    return !!user.configurationMod;
+export default s.router(configurationContract, {
+  get: {
+    handler: async (r) =>
+      callController(ConfigurationController.getConfiguration)(r),
+  },
+  update: {
+    handler: async (r) =>
+      callController(ConfigurationController.updateConfiguration)(r),
+  },
+  getSchema: {
+    handler: async (r) => callController(ConfigurationController.getSchema)(r),
   },
 });
-
-router.get("/", asyncHandler(ConfigurationController.getConfiguration));
-
-router.patch(
-  "/",
-  useInProduction([authenticateRequest(), checkIfUserIsConfigurationMod]),
-  validateRequest({
-    body: {
-      configuration: joi.object(),
-    },
-  }),
-  asyncHandler(ConfigurationController.updateConfiguration)
-);
-
-router.get(
-  "/schema",
-  useInProduction([authenticateRequest(), checkIfUserIsConfigurationMod]),
-  asyncHandler(ConfigurationController.getSchema)
-);
-
-export default router;

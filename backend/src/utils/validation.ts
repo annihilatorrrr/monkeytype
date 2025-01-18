@@ -1,67 +1,14 @@
 import _ from "lodash";
-import { replaceHomoglyphs } from "../constants/homoglyphs";
-import { profanities, regexProfanities } from "../constants/profanities";
-import { matchesAPattern, sanitizeString } from "./misc";
+import { CompletedEvent } from "@monkeytype/contracts/schemas/results";
 
-export function inRange(value: number, min: number, max: number): boolean {
-  return value >= min && value <= max;
-}
-
-const VALID_NAME_PATTERN = /^[\da-zA-Z_.-]+$/;
-
-export function isUsernameValid(name: string): boolean {
-  if (_.isNil(name) || !inRange(name.length, 1, 16)) {
-    return false;
-  }
-
-  const normalizedName = name.toLowerCase();
-
-  const beginsWithPeriod = /^\..*/.test(normalizedName);
-  if (beginsWithPeriod) {
-    return false;
-  }
-
-  const isProfanity = profanities.find((profanity) =>
-    normalizedName.includes(profanity)
-  );
-  if (isProfanity) {
-    return false;
-  }
-
-  return VALID_NAME_PATTERN.test(name);
-}
-
-export function containsProfanity(text: string): boolean {
-  const normalizedText = text
-    .toLowerCase()
-    .split(/[.,"/#!?$%^&*;:{}=\-_`~()\s\n]+/g)
-    .map((str) => {
-      return replaceHomoglyphs(sanitizeString(str) ?? "");
-    });
-
-  const hasProfanity = regexProfanities.some((profanity) => {
-    return normalizedText.some((word) => {
-      return matchesAPattern(word, profanity);
-    });
-  });
-
-  return hasProfanity;
-}
-
-export function isTagPresetNameValid(name: string): boolean {
-  if (_.isNil(name) || !inRange(name.length, 1, 16)) {
-    return false;
-  }
-
-  return VALID_NAME_PATTERN.test(name);
-}
-
-export function isTestTooShort(result: MonkeyTypes.CompletedEvent): boolean {
+export function isTestTooShort(result: CompletedEvent): boolean {
   const { mode, mode2, customText, testDuration, bailedOut } = result;
 
   if (mode === "time") {
-    const setTimeTooShort = mode2 > 0 && mode2 < 15;
-    const infiniteTimeTooShort = mode2 === 0 && testDuration < 15;
+    const seconds = parseInt(mode2);
+
+    const setTimeTooShort = seconds > 0 && seconds < 15;
+    const infiniteTimeTooShort = seconds === 0 && testDuration < 15;
     const bailedOutTooShort = bailedOut
       ? bailedOut && testDuration < 15
       : false;
@@ -69,8 +16,10 @@ export function isTestTooShort(result: MonkeyTypes.CompletedEvent): boolean {
   }
 
   if (mode === "words") {
-    const setWordTooShort = mode2 > 0 && mode2 < 10;
-    const infiniteWordTooShort = mode2 === 0 && testDuration < 15;
+    const wordCount = parseInt(mode2);
+
+    const setWordTooShort = wordCount > 0 && wordCount < 10;
+    const infiniteWordTooShort = wordCount === 0 && testDuration < 15;
     const bailedOutTooShort = bailedOut
       ? bailedOut && testDuration < 15
       : false;
@@ -79,20 +28,16 @@ export function isTestTooShort(result: MonkeyTypes.CompletedEvent): boolean {
 
   if (mode === "custom") {
     if (!customText) return true;
-    const { isWordRandom, isTimeRandom, textLen, word, time } = customText;
-    const setTextTooShort =
-      !isWordRandom && !isTimeRandom && _.isNumber(textLen) && textLen < 10;
-    const randomWordsTooShort = isWordRandom && !isTimeRandom && word < 10;
-    const randomTimeTooShort = !isWordRandom && isTimeRandom && time < 15;
+    const wordLimitTooShort =
+      (customText.limit.mode === "word" ||
+        customText.limit.mode === "section") &&
+      customText.limit.value < 10;
+    const timeLimitTooShort =
+      customText.limit.mode === "time" && customText.limit.value < 15;
     const bailedOutTooShort = bailedOut
       ? bailedOut && testDuration < 15
       : false;
-    return (
-      setTextTooShort ||
-      randomWordsTooShort ||
-      randomTimeTooShort ||
-      bailedOutTooShort
-    );
+    return wordLimitTooShort || timeLimitTooShort || bailedOutTooShort;
   }
 
   if (mode === "zen") {

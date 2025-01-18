@@ -1,5 +1,3 @@
-import * as TestWords from "../test-words";
-
 let memoryTimer: number | null = null;
 let memoryInterval: NodeJS.Timeout | null = null;
 
@@ -30,15 +28,15 @@ export function reset(): void {
   hide();
 }
 
-export function start(): void {
+export function start(time: number): void {
   reset();
-  memoryTimer = Math.round(Math.pow(TestWords.words.length, 1.2));
+  memoryTimer = time;
   update(memoryTimer);
   show();
   memoryInterval = setInterval(() => {
     if (memoryTimer === null) return;
     memoryTimer -= 1;
-    memoryTimer == 0 ? hide() : update(memoryTimer);
+    memoryTimer === 0 ? hide() : update(memoryTimer);
     if (memoryTimer <= 0) {
       reset();
       $("#wordsWrapper").addClass("hidden");

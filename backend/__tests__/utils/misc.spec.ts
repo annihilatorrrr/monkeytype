@@ -1,12 +1,10 @@
 import _ from "lodash";
 import * as misc from "../../src/utils/misc";
+import { ObjectId } from "mongodb";
 
 describe("Misc Utils", () => {
-  it("getCurrentDayTimestamp", () => {
-    Date.now = jest.fn(() => 1652743381);
-
-    const currentDay = misc.getCurrentDayTimestamp();
-    expect(currentDay).toBe(1641600000);
+  afterAll(() => {
+    vi.useRealTimers();
   });
 
   it("matchesAPattern", () => {
@@ -274,110 +272,106 @@ describe("Misc Utils", () => {
       expect(misc.getOrdinalNumberString(input)).toEqual(output);
     });
   });
-
-  it("getStartOfWeekTimestamp", () => {
+  it("formatSeconds", () => {
     const testCases = [
       {
-        input: 1662400184017, // Mon Sep 05 2022 17:49:44 GMT+0000
-        expected: 1662336000000, // Mon Sep 05 2022 00:00:00 GMT+0000
+        seconds: 5,
+        expected: "5 seconds",
       },
       {
-        input: 1559771456000, // Wed Jun 05 2019 21:50:56 GMT+0000
-        expected: 1559520000000, // Mon Jun 03 2019 00:00:00 GMT+0000
+        seconds: 65,
+        expected: "1.08 minutes",
       },
       {
-        input: 1465163456000, // Sun Jun 05 2016 21:50:56 GMT+0000
-        expected: 1464566400000, // Mon May 30 2016 00:00:00 GMT+0000
+        seconds: misc.HOUR_IN_SECONDS,
+        expected: "1 hour",
       },
       {
-        input: 1491515456000, // Thu Apr 06 2017 21:50:56 GMT+0000
-        expected: 1491177600000, // Mon Apr 03 2017 00:00:00 GMT+0000
+        seconds: misc.DAY_IN_SECONDS,
+        expected: "1 day",
       },
       {
-        input: 1462507200000, // Fri May 06 2016 04:00:00 GMT+0000
-        expected: 1462147200000, // Mon May 02 2016 00:00:00 GMT+0000
+        seconds: misc.WEEK_IN_SECONDS,
+        expected: "1 week",
       },
       {
-        input: 1231218000000, // Tue Jan 06 2009 05:00:00 GMT+0000,
-        expected: 1231113600000, // Mon Jan 05 2009 00:00:00 GMT+0000
+        seconds: misc.YEAR_IN_SECONDS,
+        expected: "1 year",
       },
       {
-        input: 1709420681000, // Sat Mar 02 2024 23:04:41 GMT+0000
-        expected: 1708905600000, // Mon Feb 26 2024 00:00:00 GMT+0000
+        seconds: 2 * misc.YEAR_IN_SECONDS,
+        expected: "2 years",
+      },
+      {
+        seconds: 4 * misc.YEAR_IN_SECONDS,
+        expected: "4 years",
+      },
+      {
+        seconds: 3 * misc.WEEK_IN_SECONDS,
+        expected: "3 weeks",
+      },
+      {
+        seconds: misc.MONTH_IN_SECONDS * 4,
+        expected: "4 months",
+      },
+      {
+        seconds: misc.MONTH_IN_SECONDS * 11,
+        expected: "11 months",
       },
     ];
 
-    testCases.forEach(({ input, expected }) => {
-      expect(misc.getStartOfWeekTimestamp(input)).toEqual(expected);
+    testCases.forEach(({ seconds, expected }) => {
+      expect(misc.formatSeconds(seconds)).toBe(expected);
     });
   });
 
-  it("getCurrentWeekTimestamp", () => {
-    Date.now = jest.fn(() => 825289481000); // Sun Feb 25 1996 23:04:41 GMT+0000
-
-    const currentWeek = misc.getCurrentWeekTimestamp();
-    expect(currentWeek).toBe(824688000000); // Mon Feb 19 1996 00:00:00 GMT+0000
+  describe("replaceObjectId", () => {
+    it("replaces objecId with string", () => {
+      const fromDatabase = {
+        _id: new ObjectId(),
+        test: "test",
+        number: 1,
+      };
+      expect(misc.replaceObjectId(fromDatabase)).toStrictEqual({
+        _id: fromDatabase._id.toHexString(),
+        test: "test",
+        number: 1,
+      });
+    });
+    it("ignores null values", () => {
+      expect(misc.replaceObjectId(null)).toBeNull();
+    });
   });
 
-  it("mapRange", () => {
-    const testCases = [
-      {
-        input: {
-          value: 123,
-          inMin: 0,
-          inMax: 200,
-          outMin: 0,
-          outMax: 1000,
-          clamp: false,
-        },
-        expected: 615,
-      },
-      {
-        input: {
-          value: 123,
-          inMin: 0,
-          inMax: 200,
-          outMin: 1000,
-          outMax: 0,
-          clamp: false,
-        },
-        expected: 385,
-      },
-      {
-        input: {
-          value: 10001,
-          inMin: 0,
-          inMax: 10000,
-          outMin: 0,
-          outMax: 1000,
-          clamp: false,
-        },
-        expected: 1000.1,
-      },
-      {
-        input: {
-          value: 10001,
-          inMin: 0,
-          inMax: 10000,
-          outMin: 0,
-          outMax: 1000,
-          clamp: true,
-        },
-        expected: 1000,
-      },
-    ];
-
-    testCases.forEach(({ input, expected }) => {
+  describe("replaceObjectIds", () => {
+    it("replaces objecIds with string", () => {
+      const fromDatabase = {
+        _id: new ObjectId(),
+        test: "test",
+        number: 1,
+      };
+      const fromDatabase2 = {
+        _id: new ObjectId(),
+        test: "bob",
+        number: 2,
+      };
       expect(
-        misc.mapRange(
-          input.value,
-          input.inMin,
-          input.inMax,
-          input.outMin,
-          input.outMax,
-          input.clamp
-        )
-      ).toEqual(expected);
+        misc.replaceObjectIds([fromDatabase, fromDatabase2])
+      ).toStrictEqual([
+        {
+          _id: fromDatabase._id.toHexString(),
+          test: "test",
+          number: 1,
+        },
+        {
+          _id: fromDatabase2._id.toHexString(),
+          test: "bob",
+          number: 2,
+        },
+      ]);
+    });
+    it("handles undefined", () => {
+      expect(misc.replaceObjectIds(undefined as any)).toBeUndefined();
     });
   });
 });

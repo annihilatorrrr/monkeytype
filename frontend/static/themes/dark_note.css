@@ -59,7 +59,7 @@ body::before {
   background: var(--theme-accent-stripe-color);
 }
 
-#commandLineWrapper #commandLine {
+#commandLine .modal {
   --roundness: 0; /* making command line sharp */
 }
 
@@ -72,13 +72,17 @@ body::before {
   text-shadow: none;
 }
 
-#words.colorfulMode .word letter.incorrect:not(.extra),
-#words .word letter.incorrect:not(.extra) {
+#words:not(.blind).colorfulMode .word letter.incorrect:not(.extra),
+#words:not(.blind) .word letter.incorrect:not(.extra) {
   color: var(--current-color);
 }
 
-#words .word letter.incorrect,
-#words.colorfulMode .word letter.incorrect {
+#words:not(.blind) .word.error letter:not(.correct):not(.incorrect)::after {
+  background: var(--sub-color);
+}
+
+#words:not(.blind) .word letter.incorrect,
+#words:not(.blind).colorfulMode .word letter.incorrect {
   text-decoration: line-through;
   text-decoration-color: var(--error-color);
   text-decoration-thickness: 2px;
@@ -97,13 +101,10 @@ body::before {
   --c-dot--error: var(--colorful-error-color);
 }
 
-#wordsWrapper .word:not(.active) letter.correct,
-#wordsWrapper .word:not(.active) letter.incorrect {
-  animation: toDust 200ms ease-out 0ms 1 forwards;
+#words .word:has(~ .active) letter {
+  animation: toDust 200ms ease-out 0ms 1 forwards !important;
 }
-
-#wordsWrapper .word:not(.active) letter.correct::after,
-#wordsWrapper .word:not(.active) letter.incorrect::after {
+#words .word:has(~ .active) letter::after {
   animation: fadeIn 100ms ease-in 100ms 1 forwards;
 }
 
@@ -111,7 +112,7 @@ body::before {
   position: relative;
 }
 
-#wordsWrapper .word letter::after {
+#words:not(.withLigatures) .word letter::after {
   content: "";
   position: absolute;
   top: 50%;
@@ -123,11 +124,11 @@ body::before {
   opacity: 0;
 }
 
-#wordsWrapper .word letter.correct::after {
+#wordsWrapper .word:has(~ .active) letter::after {
   background: var(--c-dot);
 }
 
-#wordsWrapper .word letter.incorrect::after {
+#wordsWrapper #words:not(.blind) .word letter.incorrect::after {
   background: var(--c-dot--error);
 }
 
