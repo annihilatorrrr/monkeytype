@@ -41,8 +41,6 @@ export class SnapshotInitError extends Error {
   constructor(message: string, responseCode: number) {
     super(message);
     this.name = "SnapshotInitError";
-    // TODO INVESTIGATE
-    // oxlint-disable-next-line
     this.responseCode = responseCode;
   }
 }
